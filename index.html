@@ -1,1 +1,620 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+  <title>COMILLA TRADERS | Issue Items</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: radial-gradient(circle at 10% 30%, #0b2b44, #051a2c);
+      padding: 12px;
+      min-height: 100vh;
+    }
+    .main-container {
+      max-width: 1480px;
+      margin: 0 auto;
+      background: rgba(255,255,255,0.97);
+      border-radius: 32px;
+      overflow: hidden;
+      box-shadow: 0 25px 50px -12px rgba(0,0,0,0.4);
+    }
+    .header {
+      background: linear-gradient(105deg, #0a2f6c 0%, #0e5a7c 100%);
+      padding: 16px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+      border-bottom: 1px solid rgba(255,255,255,0.2);
+    }
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+    .header-img {
+      background: rgba(255,255,255,0.12);
+      border-radius: 60px;
+      padding: 6px 14px;
+      backdrop-filter: blur(4px);
+      transition: 0.2s;
+    }
+    .header-img img { max-height: 46px; width: auto; display: block; border-radius: 28px; }
+    .title-block h1 {
+      font-size: 1.65rem;
+      font-weight: 700;
+      letter-spacing: -0.3px;
+      background: linear-gradient(135deg, #fff, #e0f2fe);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+      text-shadow: 0 1px 2px rgba(0,0,0,0.1);
+    }
+    .title-block p { font-size: 11px; opacity: 0.85; letter-spacing: 0.3px; }
 
+    .content {
+      display: flex;
+      flex-direction: column;
+      background: #ffffff;
+      min-height: 520px;
+    }
+
+    .scrollable-cart-area {
+      flex: 1;
+      padding: 12px 16px 16px 16px;
+      overflow: visible;
+      min-height: 200px;
+    }
+
+    .cart-items-table {
+      background: #ffffff;
+      border-radius: 24px;
+      border: 1px solid #eef2f8;
+      overflow: hidden;
+      margin-top: 6px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.02);
+    }
+
+    .cart-row-header, .cart-item {
+      display: grid;
+      gap: 8px;
+      padding: 12px 14px;
+      align-items: center;
+    }
+
+    .cart-row-header {
+      background: #f8fafd;
+      font-weight: 800;
+      color: #1f3b4c;
+      font-size: 13px;
+      border-bottom: 1px solid #e2edf2;
+    }
+
+    /* Desktop Layout */
+    .cart-row-header, .cart-item {
+      grid-template-columns: 1.8fr 2.5fr 1.2fr 1.5fr 0.7fr;
+    }
+
+    /* Mobile Layout - Description first, rest in second line */
+    @media (max-width: 768px) {
+      .cart-row-header, .cart-item {
+        grid-template-columns: 1fr;
+        padding: 14px 12px;
+        gap: 10px;
+      }
+
+      .cart-row-header {
+        display: none;
+      }
+
+      /* First line: Description */
+      .cart-item > div:nth-child(2) {
+        font-size: 14px;
+        font-weight: 600;
+        color: #1f3b4c;
+        grid-column: 1 / -1;
+        white-space: normal;
+        word-break: break-word;
+        line-height: 1.4;
+      }
+
+      /* Second line: IMPA Code, Quantity, Stock/Cost, Action */
+      .cart-item > div:not(:nth-child(2)) {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        font-size: 13px;
+      }
+
+      .cart-item > div:nth-child(1) {   /* IMPA Code */
+        font-weight: 700;
+        color: #0f6b8c;
+      }
+
+      .cart-item > div:nth-child(3) {   /* Quantity */
+        flex: 1;
+      }
+
+      .cart-item > div:nth-child(4) {   /* Stock / Unit Cost */
+        flex: 2;
+      }
+
+      .cart-item > div:nth-child(5) {   /* Action */
+        justify-content: flex-end;
+      }
+
+      .qty-input {
+        width: 70px;
+        padding: 8px 6px;
+        font-size: 13.5px;
+      }
+
+      .stock-chip {
+        font-size: 12px;
+        padding: 5px 10px;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .cart-item > div:not(:nth-child(2)) {
+        gap: 8px;
+        font-size: 12.5px;
+      }
+      .qty-input { width: 65px; }
+    }
+
+    .cart-item:hover { background: #fafcff; }
+
+    .stock-chip {
+      display: inline-block;
+      background: #eef2ff;
+      padding: 4px 10px;
+      border-radius: 40px;
+      font-size: 11.5px;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    .stock-high { background: #dff9e6; color: #166534; }
+    .stock-medium { background: #fff3e0; color: #b45309; }
+    .stock-low { background: #ffe4e2; color: #b91c1c; }
+
+    .qty-input {
+      width: 78px;
+      padding: 7px 8px;
+      border-radius: 40px;
+      border: 1.5px solid #dce3ec;
+      text-align: center;
+      font-weight: 600;
+      font-size: 13.5px;
+    }
+    .remove-cart-btn {
+      background: none;
+      border: none;
+      font-size: 21px;
+      cursor: pointer;
+      color: #b91c1c;
+      transition: 0.1s;
+      width: 34px;
+      height: 34px;
+      border-radius: 30px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .remove-cart-btn:hover { background: #fee2e2; transform: scale(1.1); }
+
+    .empty-cart-placeholder {
+      text-align: center;
+      padding: 50px 20px;
+      color: #8ba0b0;
+      font-weight: 500;
+      font-size: 14px;
+    }
+
+    .fixed-fields-panel {
+      background: #ffffff;
+      border-top: 1px solid #eef2f8;
+      padding: 16px 20px 14px 20px;
+      box-shadow: 0 -2px 10px rgba(0,0,0,0.02);
+      z-index: 5;
+    }
+    .compact-search-header {
+      background: #ffffff;
+      padding: 6px 0 12px 0;
+      position: sticky;
+      top: 0;
+      z-index: 12;
+      border-bottom: 2px solid #eef2fa;
+      margin-bottom: 12px;
+    }
+    .global-search-bar {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .global-search-wrapper {
+      flex: 1;
+      position: relative;
+      min-width: 200px;
+    }
+    .global-search-wrapper input {
+      width: 100%;
+      padding: 12px 18px 12px 44px;
+      border: 2px solid #e2e8f0;
+      border-radius: 60px;
+      font-size: 14px;
+      background: #fefefe;
+      transition: 0.2s;
+      font-weight: 500;
+    }
+    .global-search-wrapper input:focus {
+      border-color: #0f6b8c;
+      box-shadow: 0 0 0 4px rgba(15,107,140,0.1);
+      outline: none;
+    }
+    .search-icon {
+      position: absolute;
+      left: 18px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 18px;
+      color: #5f7f9c;
+    }
+    .cart-summary-badge {
+      background: #ecfdf5;
+      border-radius: 60px;
+      padding: 8px 18px;
+      font-weight: 700;
+      color: #0f5c3b;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 13.5px;
+      border: 1px solid #c0e3da;
+      white-space: nowrap;
+    }
+    .cart-number {
+      background: #0f6b8c;
+      color: white;
+      border-radius: 40px;
+      padding: 3px 12px;
+      font-size: 13.5px;
+    }
+    .action-buttons {
+      display: flex;
+      gap: 12px;
+      margin-top: 16px;
+      justify-content: flex-end;
+      flex-wrap: wrap;
+    }
+    .btn-primary {
+      background: linear-gradient(95deg, #0a2f6c, #126e8e);
+      border: none;
+      padding: 11px 28px;
+      border-radius: 40px;
+      color: white;
+      font-weight: 700;
+      cursor: pointer;
+      transition: 0.2s;
+      font-size: 14px;
+    }
+    .btn-outline {
+      background: #f1f5f9;
+      border: none;
+      padding: 9px 20px;
+      border-radius: 40px;
+      font-weight: 600;
+      font-size: 13.5px;
+    }
+    .row-2-inline {
+      display: flex;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+    .field-group {
+      flex: 1;
+      min-width: 240px;
+    }
+    .field-group label {
+      font-size: 12px;
+      font-weight: 700;
+      color: #2c4b66;
+      display: block;
+      margin-bottom: 6px;
+    }
+    .field-group input, .field-group textarea {
+      width: 100%;
+      padding: 10px 14px;
+      border-radius: 28px;
+      border: 1.5px solid #e2e8f0;
+      font-size: 13.5px;
+      background: white;
+    }
+    textarea { border-radius: 20px !important; resize: vertical; min-height: 52px; }
+    .message {
+      margin-top: 12px;
+      padding: 10px 18px;
+      border-radius: 60px;
+      display: none;
+      font-size: 13px;
+      font-weight: 500;
+    }
+    .message.success { background: #dff9e6; color: #14532d; }
+    .message.error { background: #ffe6e5; color: #a51b1b; }
+
+    /* Dropdown */
+    .enhanced-scroll-dropdown {
+      position: absolute;
+      top: calc(100% + 6px);
+      left: 0;
+      right: 0;
+      background: white;
+      border-radius: 20px;
+      box-shadow: 0 20px 35px -10px rgba(0,0,0,0.25);
+      z-index: 9999;
+      display: none;
+      max-height: 320px;
+      overflow-y: auto;
+      border: 1px solid #e2edf2;
+    }
+    .enhanced-scroll-dropdown.show { display: block; }
+    .dropdown-item-custom {
+      padding: 12px 18px;
+      border-bottom: 1px solid #f0f4fa;
+      cursor: pointer;
+      transition: background 0.12s;
+    }
+    .dropdown-item-custom:hover { background: #eef5fc; }
+    .dropdown-item-custom strong { color: #0f5e7e; font-size: 14px; }
+    .dropdown-item-custom small { font-size: 11px; color: #5d6f83; }
+
+    @media (max-width: 700px) {
+      .title-block h1 { font-size: 1.5rem; }
+    }
+  </style>
+</head>
+<body>
+<div class="main-container">
+  <div class="header">
+    <div class="header-left">
+      <div class="header-img"><a href="https://ibb.co.com/wq3rDWp" target="_blank"><img src="https://i.ibb.co.com/1NhJHqR/image-Picsart-Background-Remover.png" alt="COMILLA TRADERS"></a></div>
+      <div class="title-block"><h1>COMILLA TRADERS</h1><p>Issue Items</p></div>
+    </div>
+  </div>
+
+  <div class="content">
+    <!-- ONLY ISSUE ITEMS TAB -->
+    <div id="issuePane" class="tab-pane active" style="display: flex; flex-direction: column; height: 100%;">
+      <div class="scrollable-cart-area">
+        <div class="compact-search-header">
+          <div class="global-search-bar">
+            <div class="global-search-wrapper">
+              <span class="search-icon">🔍</span>
+              <input type="text" id="issueGlobalSearch" placeholder="Search IMPA Code or Description..." autocomplete="off">
+              <div id="issueGlobalDropdown" class="enhanced-scroll-dropdown"></div>
+            </div>
+            <div class="cart-summary-badge">🛒 CART <span id="issueCartCount" class="cart-number">0</span></div>
+            <button class="btn-outline" onclick="clearIssueCart()" style="background:#f1f5f9;">🗑️ Clear</button>
+          </div>
+        </div>
+        <div id="issueCartContainer" class="cart-items-table">
+          <div class="cart-row-header"><div>IMPA Code</div><div>Description</div><div>Quantity</div><div>Stock / Unit Cost</div><div>Action</div></div>
+          <div id="issueCartItemsList"></div>
+        </div>
+      </div>
+      <div class="fixed-fields-panel">
+        <div class="row-2-inline">
+          <div class="field-group"><label>Issued By</label><input type="text" id="issueDoneBy" placeholder=""></div>
+          <div class="field-group"><label>Department</label><input type="text" id="issueDepartment" placeholder=""></div>
+        </div>
+        <div class="field-group" style="margin-top: 10px;"><label>Remarks</label><textarea id="issueRemarks" rows="1" placeholder=""></textarea></div>
+        <div class="action-buttons"><button class="btn-primary" id="issueSubmitBtn" onclick="submitAllIssues()">Submit</button></div>
+        <div id="issueMessage" class="message"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const API_URL = "https://script.google.com/macros/s/AKfycbzkS1sO5Tap-p6MHMQj4p06QF17cohXoaD47blfEeBMk6DCUGVquXjHIvL0YHyg6oXBPw/exec";
+  let allItems = [];
+  let issueCart = [];
+  let isIssuing = false;
+
+  async function callAPI(action, payload = []) {
+    try {
+      const res = await fetch(API_URL, { method: "POST", body: JSON.stringify({ action, payload }) });
+      return await res.json();
+    } catch (err) { return { success: false, error: err.toString() }; }
+  }
+
+  async function refreshInventory() {
+    const items = await callAPI("getInventoryItems");
+    if (Array.isArray(items)) { 
+      allItems = items; 
+      console.log(`✅ ${allItems.length} items synced`); 
+    }
+    renderIssueCart();
+  }
+
+  function getLiveItem(code) { return allItems.find(i => i.chutuoCode === code); }
+  function formatDescription(desc) { return desc ? (desc.length > 70 ? desc.slice(0,70)+"..." : desc) : "—"; }
+  function escapeHtml(str) { if(!str) return ""; return str.replace(/[&<>]/g, m=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[m])); }
+  function formatCostBDT(cost) { return cost ? "৳"+parseFloat(cost).toFixed(2) : "—"; }
+
+  window.onload = async () => {
+    await refreshInventory();
+    setInterval(refreshInventory, 8000);
+    attachGlobalSearch();
+  };
+
+  function attachGlobalSearch() {
+    const input = document.getElementById("issueGlobalSearch");
+    if(input) input.addEventListener("input", (e) => searchGlobal(e.target.value));
+    document.addEventListener("click", (e) => { 
+      if(!e.target.closest(".global-search-wrapper")) hideDropdown(); 
+    });
+  }
+
+  function hideDropdown() {
+    document.getElementById("issueGlobalDropdown").classList.remove("show");
+  }
+
+  function searchGlobal(term) {
+    const dropdown = document.getElementById("issueGlobalDropdown");
+    if(!term.trim()) { 
+      dropdown.classList.remove("show"); 
+      return; 
+    }
+    
+    const results = allItems.filter(i => 
+      i.chutuoCode.toLowerCase().includes(term.toLowerCase()) || 
+      (i.description && i.description.toLowerCase().includes(term.toLowerCase()))
+    ).slice(0, 35);
+
+    dropdown.innerHTML = "";
+    if(results.length === 0) {
+      dropdown.innerHTML = "<div style='padding:16px;text-align:center;color:#718096;'>✨ No matching items</div>";
+      dropdown.classList.add("show");
+      return;
+    }
+
+    results.forEach(item => {
+      const div = document.createElement("div");
+      div.className = "dropdown-item-custom";
+      const live = getLiveItem(item.chutuoCode) || item;
+      div.innerHTML = `<strong>${escapeHtml(item.chutuoCode)}</strong><br><span style="font-size:12px;">${formatDescription(item.description)} &nbsp;| 📦 ${live.quantity} &nbsp;| ${formatCostBDT(item.unitCostBDT)}</span>`;
+      div.onclick = (e) => { 
+        e.stopPropagation(); 
+        addToCart(item); 
+        dropdown.classList.remove("show"); 
+        document.getElementById("issueGlobalSearch").value = ""; 
+      };
+      dropdown.appendChild(div);
+    });
+    dropdown.classList.add("show");
+  }
+
+  function addToCart(item) {
+    const live = getLiveItem(item.chutuoCode) || item;
+    const existing = issueCart.find(c => c.chutuoCode === item.chutuoCode);
+    if(existing) {
+      existing.quantity += 1;
+    } else {
+      issueCart.push({ 
+        chutuoCode: item.chutuoCode, 
+        description: item.description, 
+        quantity: 1, 
+        unitCostBDT: item.unitCostBDT, 
+        availableStock: live.quantity 
+      });
+    }
+    renderIssueCart();
+  }
+
+  function renderIssueCart() {
+    const container = document.getElementById("issueCartItemsList");
+    if(!container) return;
+    
+    if(issueCart.length === 0) {
+      container.innerHTML = `<div class="empty-cart-placeholder">🛒 Cart is empty — search items above to issue</div>`;
+      document.getElementById("issueCartCount").innerText = "0";
+      return;
+    }
+
+    let html = "";
+    issueCart.forEach((it, idx) => {
+      const liveStock = getLiveItem(it.chutuoCode)?.quantity ?? it.availableStock;
+      const stockClass = liveStock <= 5 ? 'stock-low' : (liveStock <= 20 ? 'stock-medium' : 'stock-high');
+      
+      html += `<div class="cart-item">
+        <div><strong>${escapeHtml(it.chutuoCode)}</strong></div>
+        <div style="font-size:12px;">${formatDescription(it.description)}</div>
+        <div><input class="qty-input" type="number" min="1" value="${it.quantity}" onchange="updateIssueQty(${idx}, this.value)"></div>
+        <div><span class="stock-chip ${stockClass}">📦 ${liveStock} | ${formatCostBDT(it.unitCostBDT)}</span></div>
+        <div><button class="remove-cart-btn" onclick="removeIssueCartItem(${idx})">✖</button></div>
+      </div>`;
+    });
+
+    container.innerHTML = html;
+    document.getElementById("issueCartCount").innerText = issueCart.reduce((s,i)=>s+i.quantity,0);
+  }
+
+  function updateIssueQty(idx, val) { 
+    let q = Math.max(1, parseInt(val)||1); 
+    issueCart[idx].quantity = q; 
+    renderIssueCart(); 
+  }
+
+  function removeIssueCartItem(idx) { 
+    issueCart.splice(idx,1); 
+    renderIssueCart(); 
+  }
+
+  function clearIssueCart() { 
+    issueCart = []; 
+    renderIssueCart(); 
+  }
+
+  async function submitAllIssues() {
+    if(isIssuing) return;
+    if(issueCart.length===0) { 
+      showMessage("Cart is empty! Add items to issue.", "error"); 
+      return; 
+    }
+    
+    isIssuing = true; 
+    const btn = document.getElementById("issueSubmitBtn"); 
+    btn.disabled = true; 
+    btn.textContent = "⏳...";
+
+    const doneBy = document.getElementById("issueDoneBy").value;
+    const department = document.getElementById("issueDepartment").value;
+    const remarks = document.getElementById("issueRemarks").value;
+
+    const payload = issueCart.map(i => ({
+      chutuoCode: i.chutuoCode, 
+      qtyToIssue: i.quantity, 
+      doneBy, 
+      department, 
+      remarks 
+    }));
+
+    const res = await callAPI("processMultipleIssues", payload);
+
+    if(res.success) { 
+      showMessage(`✅ ${payload.length} item(s) issued successfully`, "success"); 
+      await refreshInventory(); 
+      clearIssueCart(); 
+      document.getElementById("issueDoneBy").value = "";
+      document.getElementById("issueDepartment").value = "";
+      document.getElementById("issueRemarks").value = "";
+    } else { 
+      showMessage(res.error || "Server error", "error"); 
+    }
+
+    btn.disabled = false; 
+    btn.textContent = "Submit"; 
+    isIssuing = false;
+  }
+
+  function showMessage(msg, type) {
+    const el = document.getElementById("issueMessage");
+    el.textContent = msg;
+    el.className = `message ${type}`;
+    el.style.display = "block";
+    setTimeout(() => el.style.display = "none", 4500);
+  }
+</script>
+</body>
+</html>
