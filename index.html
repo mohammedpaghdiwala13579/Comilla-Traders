@@ -12,22 +12,22 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Comilla Traders">
-  <link rel="apple-touch-icon" href="https://i.ibb.co.com/1NhJHqR/image-Picsart-Background-Remover.png">
+  <link rel="apple-touch-icon" href="https://i.ibb.co.com/gFBkpt8B/Chat-GPT-Image-Apr-23-2026-01-10-13-PM.png">
   <!-- Windows / Edge PWA icon and tile support -->
   <meta name="msapplication-TileColor" content="#0e526d">
-  <meta name="msapplication-TileImage" content="https://i.ibb.co.com/1NhJHqR/image-Picsart-Background-Remover.png">
-  <meta name="msapplication-square70x70logo" content="https://i.ibb.co.com/1NhJHqR/image-Picsart-Background-Remover.png">
-  <meta name="msapplication-square150x150logo" content="https://i.ibb.co.com/1NhJHqR/image-Picsart-Background-Remover.png">
-  <meta name="msapplication-wide310x150logo" content="https://i.ibb.co.com/1NhJHqR/image-Picsart-Background-Remover.png">
-  <meta name="msapplication-square310x310logo" content="https://i.ibb.co.com/1NhJHqR/image-Picsart-Background-Remover.png">
+  <meta name="msapplication-TileImage" content="https://i.ibb.co.com/gFBkpt8B/Chat-GPT-Image-Apr-23-2026-01-10-13-PM.png">
+  <meta name="msapplication-square70x70logo" content="https://i.ibb.co.com/gFBkpt8B/Chat-GPT-Image-Apr-23-2026-01-10-13-PM.png">
+  <meta name="msapplication-square150x150logo" content="https://i.ibb.co.com/gFBkpt8B/Chat-GPT-Image-Apr-23-2026-01-10-13-PM.png">
+  <meta name="msapplication-wide310x150logo" content="https://i.ibb.co.com/gFBkpt8B/Chat-GPT-Image-Apr-23-2026-01-10-13-PM.png">
+  <meta name="msapplication-square310x310logo" content="https://i.ibb.co.com/gFBkpt8B/Chat-GPT-Image-Apr-23-2026-01-10-13-PM.png">
   <meta name="msapplication-navbutton-color" content="#0e526d">
   <meta name="msapplication-starturl" content="/index.html">
   <meta name="msapplication-config" content="browserconfig.xml">
   <meta name="application-name" content="Comilla Traders">
   <!-- Favicon for Windows browser tab, taskbar, and pinned sites -->
-  <link rel="icon" type="image/png" sizes="32x32" href="https://i.ibb.co.com/1NhJHqR/image-Picsart-Background-Remover.png">
-  <link rel="icon" type="image/png" sizes="16x16" href="https://i.ibb.co.com/1NhJHqR/image-Picsart-Background-Remover.png">
-  <link rel="shortcut icon" href="https://i.ibb.co.com/1NhJHqR/image-Picsart-Background-Remover.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="https://i.ibb.co.com/gFBkpt8B/Chat-GPT-Image-Apr-23-2026-01-10-13-PM.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="https://i.ibb.co.com/gFBkpt8B/Chat-GPT-Image-Apr-23-2026-01-10-13-PM.png">
+  <link rel="shortcut icon" href="https://i.ibb.co.com/gFBkpt8B/Chat-GPT-Image-Apr-23-2026-01-10-13-PM.png">
 
   <style>
     * {
@@ -621,8 +621,8 @@
   <div class="brand-banner">
     <div class="company-header">
       <div class="logo-area">
-        <a href="https://ibb.co.com/wq3rDWp" target="_blank" class="logo-circle">
-          <img src="https://i.ibb.co.com/1NhJHqR/image-Picsart-Background-Remover.png" alt="COMILLA TRADERS Logo">
+        <a href="https://ibb.co.com/4g5hG4L5" target="_blank" class="logo-circle">
+          <img src="https://i.ibb.co.com/gFBkpt8B/Chat-GPT-Image-Apr-23-2026-01-10-13-PM.png" alt="COMILLA TRADERS Logo">
         </a>
       </div>
       <div class="title-section">
@@ -721,7 +721,7 @@
     });
   }
 
-  // ========== PWA INSTALL BUTTON LOGIC — FIXED: ALWAYS REAPPEARS AFTER DELETE ==========
+  // ========== PWA INSTALL BUTTON LOGIC — REMOVED ONCE DOWNLOADED ==========
   (function() {
     var STORAGE_KEY = 'ct_pwa_installed';
     var deferredPrompt = null;
@@ -751,18 +751,21 @@
       return;
     }
 
-    // ----- STEP 3: If previously installed (flag set), DO NOT HIDE PERMANENTLY, we clear flag if user comes back as not installed.
-    // The flag is only used to *not* show again in same session after install. We clear it if not in standalone so it reappears.
+    // ----- STEP 3: Check localStorage flag. If set, it means user installed before. 
+    // We only show the button if the flag is NOT set, ensuring it disappears after install.
     var alreadyInstalledFlag = false;
     try { alreadyInstalledFlag = localStorage.getItem(STORAGE_KEY) === '1'; } catch(e) {}
-    // If the user is NOT in standalone mode (i.e., browser mode), we remove the flag so the button can reappear.
-    if (!isAlreadyApp && alreadyInstalledFlag) {
-      try { localStorage.removeItem(STORAGE_KEY); } catch(e) {}
-      alreadyInstalledFlag = false;
-    }
-    // If we are in app mode, hide; otherwise proceed to show UI
-    if (isAlreadyApp) {
-      permanentlyHideInstallUI();
+    
+    if (alreadyInstalledFlag) {
+      // User has installed the app previously. We keep the UI hidden.
+      if (installBtnWrapper) installBtnWrapper.style.display = 'none';
+      if (iosBanner) iosBanner.style.display = 'none';
+      // But if they are NOT in standalone now (meaning they deleted the app), 
+      // we clear the flag so the button can reappear on next load.
+      if (!isAlreadyApp) {
+        try { localStorage.removeItem(STORAGE_KEY); } catch(e) {}
+        // For the current session, we still hide it, but on next refresh it will reappear.
+      }
       return;
     }
 
