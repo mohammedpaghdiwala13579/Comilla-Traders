@@ -612,6 +612,14 @@
       .link-buttons { flex-direction: column; width: 100%; }
       .custom-link, .file-label { width: 100%; justify-content: center; }
     }
+    
+    /* Additional hiding classes for complete removal */
+    .hidden-permanently {
+      display: none !important;
+      visibility: hidden !important;
+      opacity: 0 !important;
+      pointer-events: none !important;
+    }
   </style>
 </head>
 <body>
@@ -721,7 +729,7 @@
     });
   }
 
-  // ========== PWA INSTALL BUTTON LOGIC — REMOVED ONCE DOWNLOADED ==========
+  // ========== PWA INSTALL BUTTON LOGIC — COMPLETELY REMOVED AFTER INSTALL ==========
   (function() {
     var STORAGE_KEY = 'ct_pwa_installed';
     var deferredPrompt = null;
@@ -729,119 +737,238 @@
     var installBtnWrapper = document.getElementById('installBtnWrapper');
     var iosBanner = document.getElementById('iosBanner');
     var closeIosBanner = document.getElementById('closeIosBanner');
-
+    var installUIHidden = false; // Track if we've already hidden the UI
+    
     // ----- Helper: permanently hide install UI and save flag to localStorage -----
     function permanentlyHideInstallUI() {
-      if (installBtnWrapper) installBtnWrapper.style.display = 'none';
-      if (iosBanner) iosBanner.style.display = 'none';
-      try { localStorage.setItem(STORAGE_KEY, '1'); } catch(e) {}
+      if (installUIHidden) return; // Already hidden
+      installUIHidden = true;
+      
+      // Force hide all install-related elements with multiple methods
+      if (installBtnWrapper) {
+        installBtnWrapper.style.display = 'none';
+        installBtnWrapper.style.visibility = 'hidden';
+        installBtnWrapper.style.opacity = '0';
+        installBtnWrapper.style.pointerEvents = 'none';
+        installBtnWrapper.classList.add('hidden-permanently');
+      }
+      
+      if (iosBanner) {
+        iosBanner.style.display = 'none';
+        iosBanner.style.visibility = 'hidden';
+        iosBanner.style.opacity = '0';
+        iosBanner.style.pointerEvents = 'none';
+        iosBanner.classList.add('hidden-permanently');
+      }
+      
+      if (installBtn) {
+        installBtn.style.display = 'none';
+        installBtn.style.visibility = 'hidden';
+        installBtn.classList.add('hidden-permanently');
+      }
+      
+      // Save to localStorage that app was installed
+      try { 
+        localStorage.setItem(STORAGE_KEY, '1'); 
+        sessionStorage.setItem(STORAGE_KEY, '1');
+      } catch(e) {}
+      
+      console.log('Install UI permanently hidden');
     }
 
-    // ----- STEP 1: Detect platform -----
-    var ua = navigator.userAgent || '';
-    var isIos = /iphone|ipad|ipod/i.test(ua) && !window.MSStream;
-    var isInStandaloneIos = ('standalone' in window.navigator) && window.navigator.standalone;
-    var isStandaloneChrome = window.matchMedia && window.matchMedia('(display-mode: standalone)').matches;
-    var isMinimalUi = window.matchMedia && window.matchMedia('(display-mode: minimal-ui)').matches;
-    var isAlreadyApp = isInStandaloneIos || isStandaloneChrome || isMinimalUi;
+    // ----- Check if running as installed PWA -----
+    function checkIfInstalled() {
+      // Check for standalone mode
+      var isStandalone = false;
+      
+      // iOS standalone
+      if (('standalone' in window.navigator) && window.navigator.standalone) {
+        isStandalone = true;
+      }
+      
+      // Android/Chrome standalone
+      if (window.matchMedia('(display-mode: standalone)').matches) {
+        isStandalone = true;
+      }
+      
+      // Fullscreen mode
+      if (window.matchMedia('(display-mode: fullscreen)').matches) {
+        isStandalone = true;
+      }
+      
+      // Check if launched from homescreen on Android
+      if (document.referrer.includes('android-app://')) {
+        isStandalone = true;
+      }
+      
+      // Check localStorage flag
+      var storageFlag = false;
+      try { 
+        storageFlag = localStorage.getItem(STORAGE_KEY) === '1' || 
+                     sessionStorage.getItem(STORAGE_KEY) === '1';
+      } catch(e) {}
+      
+      return isStandalone || storageFlag;
+    }
 
-    // ----- STEP 2: If running INSIDE the installed app, permanently hide and stop -----
-    if (isAlreadyApp) {
+    // ----- Initial check - if already installed, hide immediately -----
+    if (checkIfInstalled()) {
       permanentlyHideInstallUI();
       return;
     }
 
-    // ----- STEP 3: Check localStorage flag. If set, it means user installed before. 
-    // We only show the button if the flag is NOT set, ensuring it disappears after install.
-    var alreadyInstalledFlag = false;
-    try { alreadyInstalledFlag = localStorage.getItem(STORAGE_KEY) === '1'; } catch(e) {}
-    
-    if (alreadyInstalledFlag) {
-      // User has installed the app previously. We keep the UI hidden.
-      if (installBtnWrapper) installBtnWrapper.style.display = 'none';
-      if (iosBanner) iosBanner.style.display = 'none';
-      // But if they are NOT in standalone now (meaning they deleted the app), 
-      // we clear the flag so the button can reappear on next load.
-      if (!isAlreadyApp) {
-        try { localStorage.removeItem(STORAGE_KEY); } catch(e) {}
-        // For the current session, we still hide it, but on next refresh it will reappear.
-      }
-      return;
-    }
+    // ----- Detect platform -----
+    var ua = navigator.userAgent || '';
+    var isIos = /iphone|ipad|ipod/i.test(ua) && !window.MSStream;
 
-    // ----- STEP 4: Listen for display-mode change in real time (user installs mid-session) -----
+    // ----- Listen for display-mode change in real time -----
     if (window.matchMedia) {
       var mql = window.matchMedia('(display-mode: standalone)');
+      var handleDisplayChange = function(e) {
+        if (e.matches || checkIfInstalled()) {
+          permanentlyHideInstallUI();
+        }
+      };
+      
       try {
-        mql.addEventListener('change', function(e) { if (e.matches) permanentlyHideInstallUI(); });
+        mql.addEventListener('change', handleDisplayChange);
       } catch(e) {
-        try { mql.addListener(function(e) { if (e.matches) permanentlyHideInstallUI(); }); } catch(e2) {}
+        try { 
+          mql.addListener(handleDisplayChange); 
+        } catch(e2) {}
+      }
+      
+      // Also check fullscreen mode
+      var mqlFull = window.matchMedia('(display-mode: fullscreen)');
+      try {
+        mqlFull.addEventListener('change', handleDisplayChange);
+      } catch(e) {
+        try { 
+          mqlFull.addListener(handleDisplayChange); 
+        } catch(e2) {}
       }
     }
 
-    // ----- STEP 5: Show the correct UI per platform -----
-    // installBtnWrapper is already visible by default (CSS display:flex).
-    // For iOS we swap it out for the instruction banner.
-    if (isIos) {
-      if (installBtnWrapper) installBtnWrapper.style.display = 'none';
-      if (iosBanner) iosBanner.style.display = 'block';
+    // ----- Show correct UI per platform -----
+    if (!checkIfInstalled()) {
+      if (isIos) {
+        if (installBtnWrapper) {
+          installBtnWrapper.style.display = 'none';
+        }
+        if (iosBanner) {
+          iosBanner.style.display = 'block';
+        }
+      } else {
+        if (installBtnWrapper) {
+          installBtnWrapper.style.display = 'flex';
+        }
+      }
     }
-    // For all other platforms (Android, Windows, Samsung Internet, Firefox mobile, desktop):
-    // installBtnWrapper is already showing — nothing extra needed here.
 
-    // ----- STEP 6: Capture beforeinstallprompt when browser fires it -----
-    // (Android Chrome / Edge — this enables the native install dialog on button click)
+    // ----- Capture beforeinstallprompt -----
     window.addEventListener('beforeinstallprompt', function(e) {
+      // Prevent the mini-infobar from appearing on mobile
       e.preventDefault();
       deferredPrompt = e;
-      // Ensure button is still visible (could have been hidden between events)
-      if (!isIos && installBtnWrapper) installBtnWrapper.style.display = 'flex';
+      
+      // Make sure button is visible
+      if (!isIos && !installUIHidden) {
+        if (installBtnWrapper) {
+          installBtnWrapper.style.display = 'flex';
+          installBtnWrapper.style.visibility = 'visible';
+          installBtnWrapper.style.opacity = '1';
+        }
+      }
     });
 
-    // ----- STEP 7: appinstalled event — permanently hide -----
+    // ----- appinstalled event - fires when user installs the app -----
     window.addEventListener('appinstalled', function() {
+      console.log('App was installed');
       deferredPrompt = null;
       permanentlyHideInstallUI();
     });
 
-    // ----- STEP 8: Install button click handler -----
+    // ----- Additional visibility change check (for when returning to app) -----
+    document.addEventListener('visibilitychange', function() {
+      if (checkIfInstalled()) {
+        permanentlyHideInstallUI();
+      }
+    });
+
+    // ----- Install button click handler -----
     if (installBtn) {
       installBtn.addEventListener('click', function() {
         if (deferredPrompt) {
-          // Android Chrome / Edge: trigger native install dialog
+          // Show the install prompt
           deferredPrompt.prompt();
-          deferredPrompt.userChoice.then(function() {
-            permanentlyHideInstallUI();
+          
+          // Wait for the user to respond to the prompt
+          deferredPrompt.userChoice.then(function(choiceResult) {
+            if (choiceResult.outcome === 'accepted') {
+              console.log('User accepted the install prompt');
+              // Hide the button immediately after acceptance
+              permanentlyHideInstallUI();
+            } else {
+              console.log('User dismissed the install prompt');
+            }
             deferredPrompt = null;
           });
         } else {
-          // Browser doesn't support native prompt (Samsung Internet, Firefox, Opera, etc.)
-          // Show inline step-by-step instructions on the button itself
-          installBtn.innerHTML = '&#9432; TAP BROWSER MENU \u2192 "ADD TO HOME SCREEN"';
+          // No native prompt available - show manual instructions
+          var originalHTML = installBtn.innerHTML;
+          var originalFontSize = installBtn.style.fontSize;
+          var originalLetterSpacing = installBtn.style.letterSpacing;
+          var originalPadding = installBtn.style.padding;
+          
+          installBtn.innerHTML = '&#9432; USE BROWSER MENU → "ADD TO HOME SCREEN"';
           installBtn.style.fontSize = '0.7rem';
           installBtn.style.letterSpacing = '0.6px';
           installBtn.style.padding = '10px 14px';
           installBtn.style.whiteSpace = 'nowrap';
-          installBtn.style.cursor = 'default';
-          // Revert back after 5 seconds so user can tap again if needed
+          
           setTimeout(function() {
-            installBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px;flex-shrink:0"><path d="M12 2v13M7 10l5 5 5-5"/><path d="M3 18h18v2a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-2z"/></svg> INSTALL APP';
-            installBtn.style.fontSize = '';
-            installBtn.style.letterSpacing = '';
-            installBtn.style.padding = '';
-            installBtn.style.whiteSpace = '';
-            installBtn.style.cursor = '';
+            if (!installUIHidden) {
+              installBtn.innerHTML = originalHTML;
+              installBtn.style.fontSize = originalFontSize;
+              installBtn.style.letterSpacing = originalLetterSpacing;
+              installBtn.style.padding = originalPadding;
+              installBtn.style.whiteSpace = '';
+            }
           }, 5000);
         }
       });
     }
 
-    // ----- STEP 9: iOS banner close — permanently hide -----
+    // ----- iOS banner close handler -----
     if (closeIosBanner) {
       closeIosBanner.addEventListener('click', function() {
         permanentlyHideInstallUI();
       });
     }
+    
+    // ----- Continuous monitoring for install state (checks every 2 seconds initially) -----
+    var checkCount = 0;
+    var maxChecks = 15; // Check for 30 seconds after page load
+    
+    var monitorInterval = setInterval(function() {
+      checkCount++;
+      
+      if (checkIfInstalled()) {
+        permanentlyHideInstallUI();
+        clearInterval(monitorInterval);
+      }
+      
+      // Stop checking after maxChecks
+      if (checkCount >= maxChecks) {
+        clearInterval(monitorInterval);
+      }
+    }, 2000);
+    
+    // Clean up interval on page unload
+    window.addEventListener('beforeunload', function() {
+      clearInterval(monitorInterval);
+    });
+
   })();
 
   (function() {
