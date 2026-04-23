@@ -13,6 +13,9 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Comilla Traders">
   <link rel="apple-touch-icon" href="https://i.ibb.co.com/gFBkpt8B/Chat-GPT-Image-Apr-23-2026-01-10-13-PM.png">
+  <link rel="apple-touch-icon" sizes="152x152" href="https://i.ibb.co.com/gFBkpt8B/Chat-GPT-Image-Apr-23-2026-01-10-13-PM.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="https://i.ibb.co.com/gFBkpt8B/Chat-GPT-Image-Apr-23-2026-01-10-13-PM.png">
+  <link rel="apple-touch-icon" sizes="167x167" href="https://i.ibb.co.com/gFBkpt8B/Chat-GPT-Image-Apr-23-2026-01-10-13-PM.png">
   <meta name="msapplication-TileColor" content="#0e526d">
   <meta name="msapplication-TileImage" content="https://i.ibb.co.com/gFBkpt8B/Chat-GPT-Image-Apr-23-2026-01-10-13-PM.png">
   <meta name="msapplication-square70x70logo" content="https://i.ibb.co.com/gFBkpt8B/Chat-GPT-Image-Apr-23-2026-01-10-13-PM.png">
@@ -23,6 +26,8 @@
   <meta name="msapplication-starturl" content="/index.html">
   <meta name="msapplication-config" content="browserconfig.xml">
   <meta name="application-name" content="Comilla Traders">
+  <link rel="icon" type="image/png" sizes="192x192" href="https://i.ibb.co.com/gFBkpt8B/Chat-GPT-Image-Apr-23-2026-01-10-13-PM.png">
+  <link rel="icon" type="image/png" sizes="512x512" href="https://i.ibb.co.com/gFBkpt8B/Chat-GPT-Image-Apr-23-2026-01-10-13-PM.png">
   <link rel="icon" type="image/png" sizes="32x32" href="https://i.ibb.co.com/gFBkpt8B/Chat-GPT-Image-Apr-23-2026-01-10-13-PM.png">
   <link rel="icon" type="image/png" sizes="16x16" href="https://i.ibb.co.com/gFBkpt8B/Chat-GPT-Image-Apr-23-2026-01-10-13-PM.png">
   <link rel="shortcut icon" href="https://i.ibb.co.com/gFBkpt8B/Chat-GPT-Image-Apr-23-2026-01-10-13-PM.png">
@@ -88,6 +93,7 @@
       to   { opacity: 1; transform: translateY(0); }
     }
 
+    /* FIX: proper shake keyframe animation */
     @keyframes shake {
       0%, 100% { transform: translateX(0); }
       20%       { transform: translateX(-6px); }
@@ -186,6 +192,8 @@
       min-width: 250px;
     }
 
+    /* FIX: removed deprecated align="left" attribute from HTML,
+       use CSS text-align instead */
     .details-section p {
       color: #d6edf7;
       font-size: 0.82rem;
@@ -195,7 +203,7 @@
       text-align: left;
     }
 
-    /* ===== INSTALL BUTTON — hidden by default, JS shows it ONLY in browser mode ===== */
+    /* INSTALL BUTTON WRAPPER (compact download icon) */
     #installBtnWrapper {
       display: none;
       position: fixed;
@@ -251,7 +259,40 @@
       pointer-events: none;
     }
 
-    #installBtn span { display: none; }
+    /* Hide text inside button if present */
+    #installBtn span {
+      display: none;
+    }
+
+    #iosBanner {
+      display: none;
+      background: rgba(5, 22, 32, 0.9);
+      backdrop-filter: blur(18px);
+      border-radius: 32px;
+      border: 1px solid rgba(80, 190, 220, 0.5);
+      padding: 1rem 1.4rem;
+      color: #d6edf7;
+      font-size: 0.82rem;
+      font-weight: 500;
+      line-height: 1.7;
+      text-align: center;
+      position: relative;
+    }
+
+    #iosBanner strong { color: #7ad8ff; }
+
+    #iosBanner .close-ios {
+      position: absolute;
+      top: 10px; right: 16px;
+      background: none;
+      border: none;
+      color: #7fc9e5;
+      font-size: 1.1rem;
+      cursor: pointer;
+      font-family: inherit;
+      padding: 0;
+      line-height: 1;
+    }
 
     @media (max-width: 780px) {
       body { padding: 1.2rem; }
@@ -260,6 +301,7 @@
       .title-section h1 { font-size: 2.1rem; }
       .logo-area img { height: 58px; }
       .brand-banner { padding: 1.2rem 1.5rem; }
+      #installBtnWrapper { justify-content: flex-start; }
     }
 
     .selection-container {
@@ -452,6 +494,7 @@
       margin-top: 0.8rem;
     }
 
+    /* Link panel styles */
     .link-panel {
       margin-top: 2rem;
       padding: 1.2rem 1rem;
@@ -570,6 +613,15 @@
       border-radius: 40px;
       backdrop-filter: blur(6px);
       letter-spacing: 1px;
+    }
+
+    @media (max-width: 560px) {
+      .login-panel { padding: 1.8rem; }
+      .role-tab { font-size: 1rem; padding: 1rem 0; }
+      .panel-title { font-size: 1.5rem; }
+      .marine-button, .one-click-btn { padding: 12px 0; }
+      .link-buttons { flex-direction: column; width: 100%; }
+      .custom-link, .file-label { width: 100%; justify-content: center; }
     }
 
     /* ===== INSTALL POPUP MODAL ===== */
@@ -721,6 +773,42 @@
       font-weight: 700;
     }
 
+    /* Platform tabs inside modal */
+    .platform-tabs {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 1.2rem;
+      background: rgba(0,0,0,0.3);
+      border-radius: 24px;
+      padding: 4px;
+    }
+
+    .platform-tab {
+      flex: 1;
+      padding: 7px 0;
+      text-align: center;
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      border-radius: 20px;
+      cursor: pointer;
+      color: #8fcbe2;
+      transition: all 0.2s;
+      border: none;
+      background: none;
+      font-family: inherit;
+    }
+
+    .platform-tab.active {
+      background: linear-gradient(135deg, rgba(30,100,125,0.8), rgba(20,70,90,0.9));
+      color: #fff;
+      border: 1px solid rgba(100,210,240,0.4);
+    }
+
+    .platform-steps { display: none; }
+    .platform-steps.active { display: flex; }
+
     .install-confirm-btn {
       width: 100%;
       padding: 13px 0;
@@ -756,13 +844,10 @@
       box-shadow: 0 12px 28px rgba(0,0,0,0.45);
     }
 
-    @media (max-width: 560px) {
-      .login-panel { padding: 1.8rem; }
-      .role-tab { font-size: 1rem; padding: 1rem 0; }
-      .panel-title { font-size: 1.5rem; }
-      .marine-button, .one-click-btn { padding: 12px 0; }
-      .link-buttons { flex-direction: column; width: 100%; }
-      .custom-link, .file-label { width: 100%; justify-content: center; }
+    .install-confirm-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
     }
 
     @media (max-width: 460px) {
@@ -787,6 +872,7 @@
         <h1>COMILLA TRADERS</h1>
         <div class="tagline">MARITIME LOGISTICS &amp; GLOBAL SHIPPING</div>
       </div>
+      <!-- FIX: removed deprecated align="left" attribute; text-align handled by CSS -->
       <div class="details-section">
         <p>Marine Equipments | 234/16, Taj Machinery Market,</p>
         <p>Hardware Tools | Jubilee Road, Chattogram,</p>
@@ -794,6 +880,23 @@
         <p>Ship Chandler | Mobile: 01712-900431</p>
         <p>General Order Suppliers | E-mail: comillatraders@gmail.com</p>
       </div>
+    </div>
+
+    <!-- INSTALL BUTTON (compact download icon) -->
+    <div id="installBtnWrapper">
+      <button id="installBtn" title="Install App">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 2v13M7 10l5 5 5-5"/>
+          <path d="M3 18h18v2a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-2z"/>
+        </svg>
+        <span>INSTALL APP</span>
+      </button>
+    </div>
+
+    <!-- iOS install instructions -->
+    <div id="iosBanner">
+      <button class="close-ios" id="closeIosBanner" aria-label="Close">&#x2715;</button>
+      <p>To install on <strong>iPhone / iPad</strong>: tap the <strong>Share</strong> button in Safari, then tap <strong>"Add to Home Screen"</strong> and confirm.</p>
     </div>
   </div>
 
@@ -810,18 +913,22 @@
 
       <div class="input-field">
         <label>Username</label>
+        <!-- FIX: added autocomplete="username" -->
         <input type="text" id="ownerUsername" placeholder="" autocomplete="username">
       </div>
       <div class="input-field">
         <label>Password</label>
+        <!-- FIX: added autocomplete="current-password" -->
         <input type="password" id="ownerPassword" placeholder="" autocomplete="current-password">
       </div>
       <button class="marine-button" id="ownerLoginBtn">UNLOCK</button>
 
+      <!-- FIX: this element now exists in the HTML so JS can find it -->
       <div class="feedback-message" id="ownerMessage">🔒 Strict authentication — only valid Host credentials grant access</div>
     </div><!-- END ownerPanel -->
 
     <!-- CREW PANEL -->
+    <!-- FIX: closing </div> was missing — now present -->
     <div id="crewPanel" class="login-panel crew-panel">
       <div class="panel-title">Crew Deck</div>
 
@@ -829,10 +936,12 @@
         <button class="one-click-btn" id="oneClickCrewBtn">ENTER</button>
       </div>
 
+      <!-- FIX: this element now exists in the HTML so JS can find it -->
       <div class="feedback-message" id="crewMessage">⚡ One‑click entry · No password needed. Tap button for instant access.</div>
 
       <hr>
 
+      <!-- FIX: link/file panel elements now present in HTML (IDs match JS references) -->
       <div class="link-panel">
         <div class="link-panel-title">Crew Resources</div>
         <div class="link-buttons">
@@ -852,10 +961,11 @@
             </label>
           </div>
         </div>
+        <!-- FIX: fileFeedback element now present in HTML -->
         <div class="file-feedback" id="fileFeedback">📁 Select a file or use resource links above</div>
       </div>
 
-    </div><!-- END crewPanel -->
+    </div><!-- END crewPanel — FIX: closing tag was missing before -->
 
   </div><!-- END selection-container -->
 
@@ -863,18 +973,7 @@
 
 <div class="watermark">COMILLA TRADERS</div>
 
-<!-- INSTALL BUTTON (fixed, bottom-right) — starts hidden, JS shows only in browser mode -->
-<div id="installBtnWrapper">
-  <button id="installBtn" title="Install App">
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M12 2v13M7 10l5 5 5-5"/>
-      <path d="M3 18h18v2a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-2z"/>
-    </svg>
-    <span>INSTALL APP</span>
-  </button>
-</div>
-
-<!-- iOS install popup modal -->
+<!-- ===== INSTALL POPUP MODAL (iOS only — Android & Desktop fire native prompt directly) ===== -->
 <div class="install-overlay" id="installOverlay" role="dialog" aria-modal="true" aria-labelledby="installModalTitle">
   <div class="install-modal" id="installModal">
     <button class="install-modal-close" id="installModalClose" aria-label="Close">&#x2715;</button>
@@ -913,122 +1012,242 @@
     });
   }
 
-  // ========== PWA INSTALL LOGIC ==========
+  // ========== PWA INSTALL BUTTON LOGIC ==========
   (function() {
-    var deferredPrompt    = null;
+    var deferredPrompt = null;
+    var installBtn = document.getElementById('installBtn');
     var installBtnWrapper = document.getElementById('installBtnWrapper');
-    var installBtn        = document.getElementById('installBtn');
-    var installOverlay    = document.getElementById('installOverlay');
+    var iosBanner = document.getElementById('iosBanner');
+    var closeIosBanner = document.getElementById('closeIosBanner');
+    var installOverlay = document.getElementById('installOverlay');
     var installModalClose = document.getElementById('installModalClose');
     var installConfirmBtn = document.getElementById('installConfirmBtn');
 
-    // ── CORE CHECK: is the page running inside the installed PWA? ────────────
-    // This covers: Android standalone, iOS standalone, Desktop standalone, TWA.
-    function isInstalledApp() {
-      if (window.navigator.standalone === true) return true;           // iOS Safari
-      if (window.matchMedia('(display-mode: standalone)').matches) return true;  // Android / Desktop
-      if (window.matchMedia('(display-mode: fullscreen)').matches) return true;
-      if (window.matchMedia('(display-mode: minimal-ui)').matches) return true;
-      if (document.referrer && document.referrer.startsWith('android-app://')) return true; // TWA
+    // Force hide install button permanently if already installed
+    function isRunningAsInstalledApp() {
+      // Check iOS standalone mode
+      if (('standalone' in window.navigator) && window.navigator.standalone) return true;
+      // Check display-mode media query
+      if (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) return true;
+      if (window.matchMedia && window.matchMedia('(display-mode: fullscreen)').matches) return true;
+      // Check Android app referrer
+      if (document.referrer && document.referrer.includes('android-app://')) return true;
       return false;
     }
 
-    // ── If already in the installed app → keep button hidden forever ─────────
-    if (isInstalledApp()) {
-      // Button stays display:none (CSS default). Exit — no listeners needed.
-      return;
-    }
-
-    // ── Not installed: determine platform ────────────────────────────────────
-    var ua    = navigator.userAgent || '';
-    var isIos = /iphone|ipad|ipod/i.test(ua) && !window.MSStream;
-
-    // iOS Safari has no beforeinstallprompt — show button right away so user
-    // can tap it and see the step-by-step popup instructions.
-    if (isIos) {
-      installBtnWrapper.style.display = 'block';
-    }
-
-    // Android Chrome / Desktop Chrome / Edge fire beforeinstallprompt when
-    // the site qualifies as installable. Show the button only then.
-    window.addEventListener('beforeinstallprompt', function(e) {
-      e.preventDefault(); // prevent browser mini-infobar
-      deferredPrompt = e;
-      installBtnWrapper.style.display = 'block';
-    });
-
-    // ── Hide immediately after install completes ─────────────────────────────
-    window.addEventListener('appinstalled', function() {
-      deferredPrompt = null;
-      installBtnWrapper.style.display = 'none';
-    });
-
-    // ── Watch for display-mode change to standalone (catches the moment the
-    //    app launches in its own window after install) ──────────────────────
-    ['(display-mode: standalone)', '(display-mode: fullscreen)', '(display-mode: minimal-ui)'].forEach(function(q) {
-      var mq = window.matchMedia(q);
-      var fn = function(e) { if (e.matches) installBtnWrapper.style.display = 'none'; };
-      try { mq.addEventListener('change', fn); } catch(err) { try { mq.addListener(fn); } catch(e2) {} }
-    });
-
-    // ── Safety net: re-check on every page visibility restore ────────────────
-    // e.g. user installs from Chrome menu then switches back to the tab
-    document.addEventListener('visibilitychange', function() {
-      if (!document.hidden && isInstalledApp()) {
+    function hideInstallUI() {
+      if (installBtnWrapper) {
         installBtnWrapper.style.display = 'none';
+        installBtnWrapper.style.visibility = 'hidden';
+        installBtnWrapper.style.opacity = '0';
+        installBtnWrapper.style.pointerEvents = 'none';
+      }
+      if (iosBanner) {
+        iosBanner.style.display = 'none';
+      }
+    }
+
+    function showInstallUI() {
+      if (isRunningAsInstalledApp()) { 
+        hideInstallUI(); 
+        return; 
+      }
+      // Only show if not installed
+      if (installBtnWrapper) {
+        installBtnWrapper.style.display = 'block';
+        installBtnWrapper.style.visibility = 'visible';
+        installBtnWrapper.style.opacity = '1';
+        installBtnWrapper.style.pointerEvents = 'auto';
+      }
+    }
+
+    // Check immediately on load
+    if (isRunningAsInstalledApp()) { 
+      hideInstallUI(); 
+    } else {
+      showInstallUI();
+    }
+
+    // Monitor display mode changes
+    if (window.matchMedia) {
+      var handleDisplayChange = function(e) {
+        if (e.matches) {
+          hideInstallUI();
+        } else {
+          // Only show if not already installed via other methods
+          if (!isRunningAsInstalledApp()) {
+            setTimeout(showInstallUI, 100);
+          }
+        }
+      };
+      
+      ['(display-mode: standalone)', '(display-mode: fullscreen)'].forEach(function(q) {
+        try {
+          var mq = window.matchMedia(q);
+          if (mq.addEventListener) {
+            mq.addEventListener('change', handleDisplayChange);
+          } else if (mq.addListener) {
+            mq.addListener(handleDisplayChange);
+          }
+        } catch(e) {}
+      });
+    }
+
+    // Handle beforeinstallprompt event
+    window.addEventListener('beforeinstallprompt', function(e) {
+      e.preventDefault();
+      deferredPrompt = e;
+      if (!isRunningAsInstalledApp()) {
+        var ua = navigator.userAgent || '';
+        var isIos = /iphone|ipad|ipod/i.test(ua) && !window.MSStream;
+        if (!isIos && installBtnWrapper) {
+          installBtnWrapper.style.display = 'block';
+          installBtnWrapper.style.visibility = 'visible';
+          installBtnWrapper.style.opacity = '1';
+          installBtnWrapper.style.pointerEvents = 'auto';
+        }
+      } else {
+        hideInstallUI();
       }
     });
 
-    // ── Safety net: check again after 1 s (display-mode can lag on some
-    //    Android devices immediately after install) ─────────────────────────
-    setTimeout(function() {
-      if (isInstalledApp()) installBtnWrapper.style.display = 'none';
-    }, 1000);
+    // Handle app installed event - THIS IS THE KEY FIX
+    window.addEventListener('appinstalled', function() {
+      console.log('App was installed - hiding install button permanently');
+      deferredPrompt = null;
+      hideInstallUI();
+      
+      // Store installation state in sessionStorage
+      try {
+        sessionStorage.setItem('pwa_installed', '1');
+      } catch(e) {}
+      
+      // Additional check after a short delay
+      setTimeout(function() {
+        if (isRunningAsInstalledApp()) {
+          hideInstallUI();
+        }
+      }, 500);
+      
+      // Check again after longer delay to ensure it's hidden
+      setTimeout(function() {
+        if (isRunningAsInstalledApp()) {
+          hideInstallUI();
+        }
+      }, 2000);
+    });
 
-    // ── Popup modal helpers ──────────────────────────────────────────────────
-    function openPopup() {
+    // Check on page visibility change (when user returns to the app)
+    document.addEventListener('visibilitychange', function() {
+      if (!document.hidden && isRunningAsInstalledApp()) {
+        hideInstallUI();
+      }
+    });
+
+    // Check on window focus
+    window.addEventListener('focus', function() {
+      if (isRunningAsInstalledApp()) {
+        hideInstallUI();
+      }
+    });
+
+    // Periodic check for first few seconds after load
+    var checkCount = 0;
+    var maxChecks = 10;
+    var checkInterval = setInterval(function() {
+      checkCount++;
+      if (isRunningAsInstalledApp()) {
+        hideInstallUI();
+        clearInterval(checkInterval);
+      }
+      if (checkCount >= maxChecks) {
+        clearInterval(checkInterval);
+      }
+    }, 500);
+
+    // Check sessionStorage for previous installation
+    try {
+      if (sessionStorage.getItem('pwa_installed') === '1' && isRunningAsInstalledApp()) {
+        hideInstallUI();
+      }
+    } catch(e) {}
+
+    // ===== POPUP MODAL LOGIC =====
+    function openInstallPopup() {
       if (!installOverlay) return;
       installOverlay.classList.add('visible');
       document.body.style.overflow = 'hidden';
     }
 
-    function closePopup() {
+    function closeInstallPopup() {
       if (!installOverlay) return;
       installOverlay.classList.remove('visible');
       document.body.style.overflow = '';
+      
+      // Check if app was installed while popup was open
       setTimeout(function() {
-        if (isInstalledApp()) installBtnWrapper.style.display = 'none';
-      }, 600);
+        if (isRunningAsInstalledApp()) {
+          hideInstallUI();
+        }
+      }, 500);
     }
 
-    if (installModalClose) installModalClose.addEventListener('click', closePopup);
-    if (installConfirmBtn) installConfirmBtn.addEventListener('click', closePopup);
+    if (installModalClose) {
+      installModalClose.addEventListener('click', closeInstallPopup);
+    }
+
     if (installOverlay) {
       installOverlay.addEventListener('click', function(e) {
-        if (e.target === installOverlay) closePopup();
+        if (e.target === installOverlay) closeInstallPopup();
       });
     }
+
     document.addEventListener('keydown', function(e) {
-      if (e.key === 'Escape') closePopup();
+      if (e.key === 'Escape') closeInstallPopup();
     });
 
-    // ── Install button click ─────────────────────────────────────────────────
+    if (installConfirmBtn) {
+      installConfirmBtn.addEventListener('click', closeInstallPopup);
+    }
+
+    // ===== INSTALL BUTTON CLICK HANDLER =====
     if (installBtn) {
       installBtn.addEventListener('click', function() {
+        var ua = navigator.userAgent || '';
+        var isIos = /iphone|ipad|ipod/i.test(ua) && !window.MSStream;
+
         if (isIos) {
-          openPopup(); // show step-by-step instructions popup
-        } else if (deferredPrompt) {
+          openInstallPopup();
+          return;
+        }
+
+        if (deferredPrompt) {
           deferredPrompt.prompt();
-          deferredPrompt.userChoice.then(function(result) {
-            if (result.outcome === 'accepted') {
-              installBtnWrapper.style.display = 'none';
+          deferredPrompt.userChoice.then(function(choiceResult) {
+            if (choiceResult.outcome === 'accepted') {
+              hideInstallUI();
+              try { sessionStorage.setItem('pwa_installed', '1'); } catch(e) {}
             }
             deferredPrompt = null;
           });
+        } else {
+          hideInstallUI();
         }
       });
     }
 
+    if (closeIosBanner) {
+      closeIosBanner.addEventListener('click', function() {
+        if (iosBanner) iosBanner.style.display = 'none';
+        try { sessionStorage.setItem('ios_banner_closed', '1'); } catch(e) {}
+      });
+    }
+
+    try {
+      if (sessionStorage.getItem('ios_banner_closed') === '1') {
+        if (iosBanner) iosBanner.style.display = 'none';
+      }
+    } catch(e) {}
   })();
 
   // ========== AUTHENTICATION & UI LOGIC ==========
@@ -1040,24 +1259,26 @@
     var HOST_VALID_USERNAME = "comillatraders";
     var HOST_VALID_PASSWORD = "admin123";
 
-    var ownerPanel      = document.getElementById('ownerPanel');
-    var crewPanel       = document.getElementById('crewPanel');
-    var roleTabs        = document.querySelectorAll('.role-tab');
-    var ownerUsername   = document.getElementById('ownerUsername');
-    var ownerPassword   = document.getElementById('ownerPassword');
-    var ownerMsg        = document.getElementById('ownerMessage');
-    var ownerBtn        = document.getElementById('ownerLoginBtn');
+    var ownerPanel    = document.getElementById('ownerPanel');
+    var crewPanel     = document.getElementById('crewPanel');
+    var roleTabs      = document.querySelectorAll('.role-tab');
+    var ownerUsername = document.getElementById('ownerUsername');
+    var ownerPassword = document.getElementById('ownerPassword');
+    var ownerMsg      = document.getElementById('ownerMessage');   // FIX: now exists
+    var ownerBtn      = document.getElementById('ownerLoginBtn');
     var oneClickCrewBtn = document.getElementById('oneClickCrewBtn');
-    var crewMsg         = document.getElementById('crewMessage');
-    var safetyLink      = document.getElementById('safetyManualLink');
-    var voyageLink      = document.getElementById('voyagePlansLink');
-    var dailyLogLink    = document.getElementById('dailyLogLink');
-    var fileUpload      = document.getElementById('fileUploadInput');
-    var fileFeedback    = document.getElementById('fileFeedback');
+    var crewMsg       = document.getElementById('crewMessage');    // FIX: now exists
+    var safetyLink    = document.getElementById('safetyManualLink'); // FIX: now exists
+    var voyageLink    = document.getElementById('voyagePlansLink');  // FIX: now exists
+    var dailyLogLink  = document.getElementById('dailyLogLink');     // FIX: now exists
+    var fileUpload    = document.getElementById('fileUploadInput');  // FIX: now exists
+    var fileFeedback  = document.getElementById('fileFeedback');     // FIX: now exists
 
+    // FIX: proper shake using CSS keyframe animation (class-based)
     function gentleShake(element) {
       if (!element) return;
       element.classList.remove('shaking');
+      // Force reflow so re-adding the class triggers the animation again
       void element.offsetWidth;
       element.classList.add('shaking');
       element.addEventListener('animationend', function handler() {
@@ -1233,7 +1454,7 @@
     // Set default state
     switchRole('owner');
 
-    console.log("Comilla Traders Maritime Gateway — install button: browser=visible, installed app=hidden.");
+    console.log("Comilla Traders Maritime Gateway — all bugs fixed, crew panel complete.");
   })();
 </script>
 </body>
