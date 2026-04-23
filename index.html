@@ -198,84 +198,65 @@
       text-align: left;
     }
 
-    /* Small fixed install FAB — bottom-right, always visible (site & app) */
+    /* INSTALL BUTTON WRAPPER (compact download icon) */
     #installBtnWrapper {
       display: none;
       position: fixed;
-      bottom: 20px;
-      right: 20px;
-      z-index: 200;
+      bottom: 24px;
+      right: 24px;
+      z-index: 50;
     }
 
     #installBtn {
-      width: 46px;
-      height: 46px;
-      border-radius: 50%;
-      background: linear-gradient(135deg, #1d6f8d, #0e526d);
-      border: 1.5px solid rgba(100, 210, 240, 0.7);
       display: flex;
       align-items: center;
       justify-content: center;
+      width: 52px;
+      height: 52px;
+      background: linear-gradient(105deg, #1d6f8d, #0e526d);
+      border: 1.5px solid rgba(100, 210, 240, 0.7);
+      border-radius: 50%;
+      color: #ffffff;
+      font-family: inherit;
+      font-weight: 700;
+      font-size: 0.72rem;
+      letter-spacing: 1.2px;
       cursor: pointer;
-      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
       transition: all 0.25s ease;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
       position: relative;
       overflow: hidden;
+      padding: 0;
     }
 
     #installBtn::after {
       content: '';
       position: absolute;
-      inset: 0;
-      border-radius: 50%;
-      background: radial-gradient(circle at 40% 35%, rgba(255,255,255,0.18), transparent 70%);
-      pointer-events: none;
+      top: 0; left: -100%;
+      width: 100%; height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+      transition: left 0.5s;
     }
+
+    #installBtn:hover::after { left: 100%; }
 
     #installBtn:hover {
-      background: linear-gradient(135deg, #2885a8, #136882);
-      transform: translateY(-3px) scale(1.08);
-      box-shadow: 0 10px 28px rgba(0, 0, 0, 0.55);
-      border-color: rgba(130, 230, 255, 0.95);
-    }
-
-    #installBtn:active {
-      transform: scale(0.95);
+      background: linear-gradient(105deg, #2885a8, #136882);
+      transform: translateY(-2px);
+      box-shadow: 0 12px 28px rgba(0, 0, 0, 0.45);
+      border-color: rgba(130, 230, 255, 0.9);
     }
 
     #installBtn svg {
-      width: 20px;
-      height: 20px;
+      width: 22px;
+      height: 22px;
       flex-shrink: 0;
-      color: #fff;
-    }
-
-    /* Tooltip on hover */
-    #installBtn::before {
-      content: 'Install App';
-      position: absolute;
-      right: 54px;
-      top: 50%;
-      transform: translateY(-50%);
-      background: rgba(5, 22, 34, 0.92);
-      backdrop-filter: blur(8px);
-      border: 1px solid rgba(80, 190, 220, 0.45);
-      color: #c2ecff;
-      font-family: inherit;
-      font-size: 0.72rem;
-      font-weight: 700;
-      letter-spacing: 1.2px;
-      text-transform: uppercase;
-      padding: 5px 12px;
-      border-radius: 20px;
-      white-space: nowrap;
-      opacity: 0;
       pointer-events: none;
-      transition: opacity 0.2s ease;
     }
 
-    #installBtn:hover::before {
-      opacity: 1;
+    /* Hide text inside button if present */
+    #installBtn span {
+      display: none;
     }
 
     #iosBanner {
@@ -896,10 +877,21 @@
       </div>
     </div>
 
-    <!-- INSTALL BUTTON -->
-    <!-- iOS install instructions (hidden, replaced by popup) -->
-    <div id="iosBanner" style="display:none;">
+    <!-- INSTALL BUTTON (compact download icon) -->
+    <div id="installBtnWrapper">
+      <button id="installBtn" title="Install App">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 2v13M7 10l5 5 5-5"/>
+          <path d="M3 18h18v2a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-2z"/>
+        </svg>
+        <span>INSTALL APP</span>
+      </button>
+    </div>
+
+    <!-- iOS install instructions -->
+    <div id="iosBanner">
       <button class="close-ios" id="closeIosBanner" aria-label="Close">&#x2715;</button>
+      <p>To install on <strong>iPhone / iPad</strong>: tap the <strong>Share</strong> button in Safari, then tap <strong>"Add to Home Screen"</strong> and confirm.</p>
     </div>
   </div>
 
@@ -1071,6 +1063,12 @@
     window.addEventListener('appinstalled', function() {
       deferredPrompt = null;
       hideInstallUI();
+      // Also check display-mode after installation
+      setTimeout(function() {
+        if (isRunningAsInstalledApp()) {
+          hideInstallUI();
+        }
+      }, 500);
     });
 
     // ===== POPUP MODAL LOGIC (iOS-only — Android & Desktop fire native prompt directly) =====
@@ -1088,6 +1086,12 @@
       if (!installOverlay) return;
       installOverlay.classList.remove('visible');
       document.body.style.overflow = '';
+      // Check if app was installed (iOS detection)
+      setTimeout(function() {
+        if (isRunningAsInstalledApp()) {
+          hideInstallUI();
+        }
+      }, 500);
     }
 
     if (installModalClose) {
@@ -1106,7 +1110,7 @@
       if (e.key === 'Escape') closeInstallPopup();
     });
 
-    // "GOT IT" dismisses popup
+    // "GOT IT" dismisses popup and checks for install
     if (installConfirmBtn) {
       installConfirmBtn.addEventListener('click', closeInstallPopup);
     }
@@ -1140,6 +1144,20 @@
         }
       });
     }
+
+    // Additional check: hide button if already installed (runs on page visibility change)
+    document.addEventListener('visibilitychange', function() {
+      if (!document.hidden && isRunningAsInstalledApp()) {
+        hideInstallUI();
+      }
+    });
+
+    // Check again after a short delay (catches cases where display-mode takes time to update)
+    setTimeout(function() {
+      if (isRunningAsInstalledApp()) {
+        hideInstallUI();
+      }
+    }, 1000);
 
     if (closeIosBanner) {
       closeIosBanner.addEventListener('click', function() {
