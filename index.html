@@ -721,90 +721,120 @@
     });
   }
 
-  // ========== PWA INSTALL BUTTON LOGIC — REPLACE PREVIOUS IMAGE WITH NEW POPUP ==========
+  // ========== PWA INSTALL BUTTON LOGIC — FIXED: HIDES AFTER INSTALLATION ==========
   (function() {
-    var STORAGE_KEY = 'ct_pwa_installed';
+    var STORAGE_KEY = 'ct_pwa_installed_v2'; // New key to force refresh
     var deferredPrompt = null;
     var installBtn = document.getElementById('installBtn');
     var installBtnWrapper = document.getElementById('installBtnWrapper');
     var iosBanner = document.getElementById('iosBanner');
     var closeIosBanner = document.getElementById('closeIosBanner');
 
-    // ----- Helper: permanently hide install UI and save flag to localStorage -----
+    // Helper: permanently hide install UI
     function permanentlyHideInstallUI() {
       if (installBtnWrapper) installBtnWrapper.style.display = 'none';
       if (iosBanner) iosBanner.style.display = 'none';
-      try { localStorage.setItem(STORAGE_KEY, '1'); } catch(e) {}
+      try { 
+        localStorage.setItem(STORAGE_KEY, '1');
+        sessionStorage.setItem('ct_install_hidden', '1');
+      } catch(e) {}
     }
 
-    // ----- STEP 1: Detect platform -----
-    var ua = navigator.userAgent || '';
-    var isIos = /iphone|ipad|ipod/i.test(ua) && !window.MSStream;
-    var isInStandaloneIos = ('standalone' in window.navigator) && window.navigator.standalone;
-    var isStandaloneChrome = window.matchMedia && window.matchMedia('(display-mode: standalone)').matches;
-    var isMinimalUi = window.matchMedia && window.matchMedia('(display-mode: minimal-ui)').matches;
-    var isAlreadyApp = isInStandaloneIos || isStandaloneChrome || isMinimalUi;
+    // Check if app is running in standalone mode (installed)
+    function isRunningAsApp() {
+      // For iOS
+      if (('standalone' in window.navigator) && window.navigator.standalone) {
+        return true;
+      }
+      // For Android/Windows/etc
+      if (window.matchMedia && (window.matchMedia('(display-mode: standalone)').matches || window.matchMedia('(display-mode: minimal-ui)').matches)) {
+        return true;
+      }
+      // Additional check for Chrome/Edge installed mode via window.navigator.standalone fallback
+      if (window.matchMedia && window.matchMedia('(display-mode: fullscreen)').matches) {
+        return true;
+      }
+      return false;
+    }
 
-    // ----- STEP 2: If running INSIDE the installed app, permanently hide -----
-    if (isAlreadyApp) {
+    // CRITICAL FIX: If running as installed app, immediately hide button and return
+    if (isRunningAsApp()) {
       permanentlyHideInstallUI();
-      return;
+      return; // Exit early - no further logic needed
     }
 
-    // ----- STEP 3: Check localStorage flag. If set, hide button. -----
+    // Check localStorage flag (user installed previously)
     var alreadyInstalledFlag = false;
     try { alreadyInstalledFlag = localStorage.getItem(STORAGE_KEY) === '1'; } catch(e) {}
     
     if (alreadyInstalledFlag) {
-      if (installBtnWrapper) installBtnWrapper.style.display = 'none';
-      if (iosBanner) iosBanner.style.display = 'none';
-      if (!isAlreadyApp) {
-        try { localStorage.removeItem(STORAGE_KEY); } catch(e) {}
-      }
+      // User has installed before but might be in browser now
+      permanentlyHideInstallUI();
       return;
     }
 
-    // ----- STEP 4: Listen for display-mode change -----
-    if (window.matchMedia) {
-      var mql = window.matchMedia('(display-mode: standalone)');
-      try {
-        mql.addEventListener('change', function(e) { if (e.matches) permanentlyHideInstallUI(); });
-      } catch(e) {
-        try { mql.addListener(function(e) { if (e.matches) permanentlyHideInstallUI(); }); } catch(e2) {}
-      }
-    }
+    // Platform detection
+    var ua = navigator.userAgent || '';
+    var isIos = /iphone|ipad|ipod/i.test(ua) && !window.MSStream;
 
-    // ----- STEP 5: Show UI per platform -----
+    // Show iOS banner or regular install button
     if (isIos) {
       if (installBtnWrapper) installBtnWrapper.style.display = 'none';
       if (iosBanner) iosBanner.style.display = 'block';
+    } else {
+      if (installBtnWrapper) installBtnWrapper.style.display = 'flex';
     }
 
-    // ----- STEP 6: beforeinstallprompt event (new popup image is shown by browser natively) -----
+    // Listen for beforeinstallprompt
     window.addEventListener('beforeinstallprompt', function(e) {
       e.preventDefault();
       deferredPrompt = e;
       if (!isIos && installBtnWrapper) installBtnWrapper.style.display = 'flex';
     });
 
-    // ----- STEP 7: appinstalled event -> permanently hide -----
+    // Listen for appinstalled event - instantly hide button
     window.addEventListener('appinstalled', function() {
       deferredPrompt = null;
       permanentlyHideInstallUI();
     });
 
-    // ----- STEP 8: Install button click triggers the native popup (replacing previous image) -----
+    // Also listen for display-mode changes (in case user installs via browser menu)
+    if (window.matchMedia) {
+      var mqlStandalone = window.matchMedia('(display-mode: standalone)');
+      var mqlMinimalUi = window.matchMedia('(display-mode: minimal-ui)');
+      
+      var handleDisplayModeChange = function(e) {
+        if (e.matches) {
+          permanentlyHideInstallUI();
+        }
+      };
+      
+      try {
+        mqlStandalone.addEventListener('change', handleDisplayModeChange);
+        mqlMinimalUi.addEventListener('change', handleDisplayModeChange);
+      } catch(e) {
+        // Fallback for older browsers
+        try {
+          mqlStandalone.addListener(handleDisplayModeChange);
+          mqlMinimalUi.addListener(handleDisplayModeChange);
+        } catch(e2) {}
+      }
+    }
+
+    // Install button click handler
     if (installBtn) {
       installBtn.addEventListener('click', function() {
         if (deferredPrompt) {
-          // This triggers the native install popup which now uses the NEW PWA icon (the requested image replaces previous image)
+          // Show native install dialog (this uses the NEW PWA icon from manifest)
           deferredPrompt.prompt();
-          deferredPrompt.userChoice.then(function() {
-            permanentlyHideInstallUI();
+          deferredPrompt.userChoice.then(function(choiceResult) {
+            if (choiceResult.outcome === 'accepted') {
+              permanentlyHideInstallUI();
+            }
             deferredPrompt = null;
           });
         } else {
-          // Fallback instruction for browsers without native prompt
+          // Fallback for browsers without native prompt
           installBtn.innerHTML = '&#9432; TAP BROWSER MENU \u2192 "ADD TO HOME SCREEN"';
           installBtn.style.fontSize = '0.7rem';
           installBtn.style.letterSpacing = '0.6px';
@@ -823,7 +853,7 @@
       });
     }
 
-    // ----- STEP 9: iOS banner close permanently -----
+    // iOS banner close button
     if (closeIosBanner) {
       closeIosBanner.addEventListener('click', function() {
         permanentlyHideInstallUI();
@@ -1041,7 +1071,7 @@
     
     switchRole('owner');
     
-    console.log("Comilla Traders Maritime Gateway — Install popup uses new image, all functionality intact.");
+    console.log("Comilla Traders Maritime Gateway — Install button now disappears after installation.");
   })();
 </script>
 </body>
