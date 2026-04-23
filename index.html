@@ -195,12 +195,17 @@
       letter-spacing: 0.2px;
     }
 
-    /* INSTALL BUTTON */
+    /* INSTALL BUTTON - hidden by default in standalone mode via inline style or class */
     #installBtnWrapper {
       display: flex;
       justify-content: flex-end;
       margin-top: 1rem;
       width: 100%;
+    }
+
+    /* Hidden class for install button */
+    .install-hidden {
+      display: none !important;
     }
 
     #installBtn {
@@ -721,102 +726,126 @@
     });
   }
 
-  // ========== PWA INSTALL BUTTON LOGIC — FIXED: HIDES AFTER INSTALLATION ==========
+  // ========== PWA INSTALL BUTTON LOGIC — FIXED: FORCE HIDE IN STANDALONE MODE ==========
   (function() {
-    var STORAGE_KEY = 'ct_pwa_installed_v2'; // New key to force refresh
+    var STORAGE_KEY = 'ct_pwa_installed_v3';
     var deferredPrompt = null;
-    var installBtn = document.getElementById('installBtn');
     var installBtnWrapper = document.getElementById('installBtnWrapper');
+    var installBtn = document.getElementById('installBtn');
     var iosBanner = document.getElementById('iosBanner');
     var closeIosBanner = document.getElementById('closeIosBanner');
 
-    // Helper: permanently hide install UI
+    // Function to force hide the install UI completely
     function permanentlyHideInstallUI() {
-      if (installBtnWrapper) installBtnWrapper.style.display = 'none';
-      if (iosBanner) iosBanner.style.display = 'none';
+      if (installBtnWrapper) {
+        installBtnWrapper.classList.add('install-hidden');
+        installBtnWrapper.style.display = 'none';
+      }
+      if (iosBanner) {
+        iosBanner.classList.add('install-hidden');
+        iosBanner.style.display = 'none';
+      }
       try { 
         localStorage.setItem(STORAGE_KEY, '1');
         sessionStorage.setItem('ct_install_hidden', '1');
       } catch(e) {}
     }
 
-    // Check if app is running in standalone mode (installed)
-    function isRunningAsApp() {
-      // For iOS
-      if (('standalone' in window.navigator) && window.navigator.standalone) {
+    // CRITICAL FIX: Check if running as installed app (standalone mode)
+    function isRunningAsInstalledApp() {
+      // Check for iOS standalone
+      if (('standalone' in window.navigator) && window.navigator.standalone === true) {
         return true;
       }
-      // For Android/Windows/etc
-      if (window.matchMedia && (window.matchMedia('(display-mode: standalone)').matches || window.matchMedia('(display-mode: minimal-ui)').matches)) {
-        return true;
+      // Check for display-mode: standalone, minimal-ui, fullscreen
+      if (window.matchMedia) {
+        if (window.matchMedia('(display-mode: standalone)').matches ||
+            window.matchMedia('(display-mode: minimal-ui)').matches ||
+            window.matchMedia('(display-mode: fullscreen)').matches) {
+          return true;
+        }
       }
-      // Additional check for Chrome/Edge installed mode via window.navigator.standalone fallback
-      if (window.matchMedia && window.matchMedia('(display-mode: fullscreen)').matches) {
+      // Check for Windows PWA
+      if (window.navigator.standalone === true) {
         return true;
       }
       return false;
     }
 
-    // CRITICAL FIX: If running as installed app, immediately hide button and return
-    if (isRunningAsApp()) {
+    // IMMEDIATE CHECK: If app is already installed and running standalone, hide button RIGHT NOW
+    if (isRunningAsInstalledApp()) {
       permanentlyHideInstallUI();
-      return; // Exit early - no further logic needed
+      return; // Stop all further execution for install logic
     }
 
-    // Check localStorage flag (user installed previously)
-    var alreadyInstalledFlag = false;
-    try { alreadyInstalledFlag = localStorage.getItem(STORAGE_KEY) === '1'; } catch(e) {}
+    // Check localStorage flag for previous installation
+    var alreadyInstalled = false;
+    try { alreadyInstalled = localStorage.getItem(STORAGE_KEY) === '1'; } catch(e) {}
     
-    if (alreadyInstalledFlag) {
-      // User has installed before but might be in browser now
+    if (alreadyInstalled) {
       permanentlyHideInstallUI();
       return;
     }
 
-    // Platform detection
+    // Detect iOS
     var ua = navigator.userAgent || '';
     var isIos = /iphone|ipad|ipod/i.test(ua) && !window.MSStream;
 
-    // Show iOS banner or regular install button
+    // Show appropriate UI
     if (isIos) {
-      if (installBtnWrapper) installBtnWrapper.style.display = 'none';
-      if (iosBanner) iosBanner.style.display = 'block';
+      if (installBtnWrapper) {
+        installBtnWrapper.classList.add('install-hidden');
+        installBtnWrapper.style.display = 'none';
+      }
+      if (iosBanner) {
+        iosBanner.classList.remove('install-hidden');
+        iosBanner.style.display = 'block';
+      }
     } else {
-      if (installBtnWrapper) installBtnWrapper.style.display = 'flex';
+      if (installBtnWrapper) {
+        installBtnWrapper.classList.remove('install-hidden');
+        installBtnWrapper.style.display = 'flex';
+      }
+      if (iosBanner) {
+        iosBanner.classList.add('install-hidden');
+        iosBanner.style.display = 'none';
+      }
     }
 
-    // Listen for beforeinstallprompt
+    // Listen for beforeinstallprompt event
     window.addEventListener('beforeinstallprompt', function(e) {
       e.preventDefault();
       deferredPrompt = e;
-      if (!isIos && installBtnWrapper) installBtnWrapper.style.display = 'flex';
+      if (!isIos && installBtnWrapper) {
+        installBtnWrapper.classList.remove('install-hidden');
+        installBtnWrapper.style.display = 'flex';
+      }
     });
 
-    // Listen for appinstalled event - instantly hide button
+    // Listen for successful installation
     window.addEventListener('appinstalled', function() {
       deferredPrompt = null;
       permanentlyHideInstallUI();
     });
 
-    // Also listen for display-mode changes (in case user installs via browser menu)
+    // Monitor display mode changes (in case user installs from within the page)
     if (window.matchMedia) {
-      var mqlStandalone = window.matchMedia('(display-mode: standalone)');
-      var mqlMinimalUi = window.matchMedia('(display-mode: minimal-ui)');
+      var standaloneQuery = window.matchMedia('(display-mode: standalone)');
+      var minimalUiQuery = window.matchMedia('(display-mode: minimal-ui)');
       
-      var handleDisplayModeChange = function(e) {
-        if (e.matches) {
+      var checkDisplayMode = function() {
+        if (isRunningAsInstalledApp()) {
           permanentlyHideInstallUI();
         }
       };
       
       try {
-        mqlStandalone.addEventListener('change', handleDisplayModeChange);
-        mqlMinimalUi.addEventListener('change', handleDisplayModeChange);
+        standaloneQuery.addEventListener('change', checkDisplayMode);
+        minimalUiQuery.addEventListener('change', checkDisplayMode);
       } catch(e) {
-        // Fallback for older browsers
         try {
-          mqlStandalone.addListener(handleDisplayModeChange);
-          mqlMinimalUi.addListener(handleDisplayModeChange);
+          standaloneQuery.addListener(checkDisplayMode);
+          minimalUiQuery.addListener(checkDisplayMode);
         } catch(e2) {}
       }
     }
@@ -825,7 +854,7 @@
     if (installBtn) {
       installBtn.addEventListener('click', function() {
         if (deferredPrompt) {
-          // Show native install dialog (this uses the NEW PWA icon from manifest)
+          // Show native install popup (this uses the NEW image from manifest)
           deferredPrompt.prompt();
           deferredPrompt.userChoice.then(function(choiceResult) {
             if (choiceResult.outcome === 'accepted') {
@@ -834,7 +863,7 @@
             deferredPrompt = null;
           });
         } else {
-          // Fallback for browsers without native prompt
+          // Fallback instructions
           installBtn.innerHTML = '&#9432; TAP BROWSER MENU \u2192 "ADD TO HOME SCREEN"';
           installBtn.style.fontSize = '0.7rem';
           installBtn.style.letterSpacing = '0.6px';
