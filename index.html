@@ -197,7 +197,7 @@
 
     /* INSTALL BUTTON */
     #installBtnWrapper {
-      display: flex;
+      display: none; /* Hidden by default, shown only when eligible */
       justify-content: flex-end;
       margin-top: 1rem;
       width: 100%;
@@ -612,14 +612,6 @@
       .link-buttons { flex-direction: column; width: 100%; }
       .custom-link, .file-label { width: 100%; justify-content: center; }
     }
-    
-    /* Additional hiding classes for complete removal */
-    .hidden-permanently {
-      display: none !important;
-      visibility: hidden !important;
-      opacity: 0 !important;
-      pointer-events: none !important;
-    }
   </style>
 </head>
 <body>
@@ -646,7 +638,7 @@
       </div>
     </div>
 
-    <!-- INSTALL BUTTON — hidden once app is installed -->
+    <!-- INSTALL BUTTON — ONLY SHOWN ON WEBSITE, HIDDEN IN INSTALLED APP -->
     <div id="installBtnWrapper">
       <button id="installBtn" title="Install as App on your device">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -674,7 +666,6 @@
     <!-- HOST PANEL (exact credentials: comillatraders / admin123) -->
     <div id="ownerPanel" class="login-panel owner-panel">
       <div class="panel-title">Host Terminal</div>
-      <div class="panel-sub">🔐 Authorized access — full fleet administration</div>
       
       <div class="input-field">
         <label>Username</label>
@@ -684,8 +675,7 @@
         <label>Password</label>
         <input type="password" id="ownerPassword" placeholder="">
       </div>
-      <button class="marine-button" id="ownerLoginBtn">UNLOCK HOST DASHBOARD</button>
-      <div id="ownerMessage" class="feedback-message">🔒 Enter valid credentials to access command center</div>
+      <button class="marine-button" id="ownerLoginBtn">UNLOCK</button>
     </div>
 
     <!-- CREW PANEL (one-click, no credentials) with additional link/file space -->
@@ -694,28 +684,13 @@
       
       
       <div class="one-click-area">
-        <button class="one-click-btn" id="oneClickCrewBtn">ENTER CREW PORTAL</button>
+        <button class="one-click-btn" id="oneClickCrewBtn">ENTER</button>
       </div>
       
       
       <hr>
       
-      <!-- Custom link panel as originally included -->
-      <div class="link-panel">
-        <div class="link-panel-title">Crew Resources & Documents</div>
-        <div class="link-buttons">
-          <a href="#" id="safetyManualLink" class="custom-link"><i>📘</i> Safety Manual</a>
-          <a href="#" id="voyagePlansLink" class="custom-link"><i>🗺️</i> Voyage Plans</a>
-          <a href="#" id="dailyLogLink" class="custom-link"><i>📋</i> Daily Log</a>
-          <div class="file-upload-area">
-            <label for="fileUploadInput" class="file-label"><i>📎</i> Upload Report</label>
-            <input type="file" id="fileUploadInput" class="file-input-hidden" accept=".pdf,.doc,.docx,.txt">
-          </div>
-        </div>
-        <div id="fileFeedback" style="text-align:center; margin-top: 16px; font-size:0.75rem; color:#b0d4e4;">📁 Select a file or use resource links above</div>
-      </div>
-      <div id="crewMessage" class="feedback-message" style="margin-top:1.8rem;">⚡ One‑click entry · No password needed. Tap button for instant access.</div>
-    </div>
+     
   </div>
 </div>
 
@@ -729,246 +704,190 @@
     });
   }
 
-  // ========== PWA INSTALL BUTTON LOGIC — COMPLETELY REMOVED AFTER INSTALL ==========
+  // ========== PWA INSTALL BUTTON LOGIC - WEBSITE ONLY, HIDDEN IN APP ==========
   (function() {
-    var STORAGE_KEY = 'ct_pwa_installed';
     var deferredPrompt = null;
     var installBtn = document.getElementById('installBtn');
     var installBtnWrapper = document.getElementById('installBtnWrapper');
     var iosBanner = document.getElementById('iosBanner');
     var closeIosBanner = document.getElementById('closeIosBanner');
-    var installUIHidden = false; // Track if we've already hidden the UI
     
-    // ----- Helper: permanently hide install UI and save flag to localStorage -----
-    function permanentlyHideInstallUI() {
-      if (installUIHidden) return; // Already hidden
-      installUIHidden = true;
-      
-      // Force hide all install-related elements with multiple methods
-      if (installBtnWrapper) {
-        installBtnWrapper.style.display = 'none';
-        installBtnWrapper.style.visibility = 'hidden';
-        installBtnWrapper.style.opacity = '0';
-        installBtnWrapper.style.pointerEvents = 'none';
-        installBtnWrapper.classList.add('hidden-permanently');
-      }
-      
-      if (iosBanner) {
-        iosBanner.style.display = 'none';
-        iosBanner.style.visibility = 'hidden';
-        iosBanner.style.opacity = '0';
-        iosBanner.style.pointerEvents = 'none';
-        iosBanner.classList.add('hidden-permanently');
-      }
-      
-      if (installBtn) {
-        installBtn.style.display = 'none';
-        installBtn.style.visibility = 'hidden';
-        installBtn.classList.add('hidden-permanently');
-      }
-      
-      // Save to localStorage that app was installed
-      try { 
-        localStorage.setItem(STORAGE_KEY, '1'); 
-        sessionStorage.setItem(STORAGE_KEY, '1');
-      } catch(e) {}
-      
-      console.log('Install UI permanently hidden');
-    }
-
     // ----- Check if running as installed PWA -----
-    function checkIfInstalled() {
-      // Check for standalone mode
-      var isStandalone = false;
-      
-      // iOS standalone
+    function isRunningAsInstalledApp() {
+      // iOS standalone mode
       if (('standalone' in window.navigator) && window.navigator.standalone) {
-        isStandalone = true;
+        return true;
       }
       
-      // Android/Chrome standalone
-      if (window.matchMedia('(display-mode: standalone)').matches) {
-        isStandalone = true;
+      // Android/Chrome standalone mode
+      if (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) {
+        return true;
       }
       
       // Fullscreen mode
-      if (window.matchMedia('(display-mode: fullscreen)').matches) {
-        isStandalone = true;
+      if (window.matchMedia && window.matchMedia('(display-mode: fullscreen)').matches) {
+        return true;
       }
       
       // Check if launched from homescreen on Android
-      if (document.referrer.includes('android-app://')) {
-        isStandalone = true;
+      if (document.referrer && document.referrer.includes('android-app://')) {
+        return true;
       }
       
-      // Check localStorage flag
-      var storageFlag = false;
-      try { 
-        storageFlag = localStorage.getItem(STORAGE_KEY) === '1' || 
-                     sessionStorage.getItem(STORAGE_KEY) === '1';
-      } catch(e) {}
+      return false;
+    }
+    
+    // ----- Hide install UI permanently (for app mode) -----
+    function hideInstallUI() {
+      if (installBtnWrapper) {
+        installBtnWrapper.style.display = 'none';
+      }
+      if (iosBanner) {
+        iosBanner.style.display = 'none';
+      }
+    }
+    
+    // ----- Show appropriate install UI based on platform and eligibility -----
+    function showInstallUI() {
+      // Only show if NOT in installed app mode
+      if (isRunningAsInstalledApp()) {
+        hideInstallUI();
+        return;
+      }
       
-      return isStandalone || storageFlag;
+      var ua = navigator.userAgent || '';
+      var isIos = /iphone|ipad|ipod/i.test(ua) && !window.MSStream;
+      
+      if (isIos) {
+        // iOS: Show banner with instructions
+        if (iosBanner) {
+          iosBanner.style.display = 'block';
+        }
+        if (installBtnWrapper) {
+          installBtnWrapper.style.display = 'none';
+        }
+      } else {
+        // Android/Desktop: Show install button
+        if (installBtnWrapper) {
+          installBtnWrapper.style.display = 'flex';
+        }
+        if (iosBanner) {
+          iosBanner.style.display = 'none';
+        }
+      }
     }
-
-    // ----- Initial check - if already installed, hide immediately -----
-    if (checkIfInstalled()) {
-      permanentlyHideInstallUI();
-      return;
+    
+    // ----- Initial check - if already installed app, hide everything -----
+    if (isRunningAsInstalledApp()) {
+      hideInstallUI();
+      return; // Exit early, no need to set up install prompts
     }
-
-    // ----- Detect platform -----
-    var ua = navigator.userAgent || '';
-    var isIos = /iphone|ipad|ipod/i.test(ua) && !window.MSStream;
-
-    // ----- Listen for display-mode change in real time -----
+    
+    // ----- Not installed: Show appropriate UI -----
+    showInstallUI();
+    
+    // ----- Listen for display-mode changes (user installs mid-session) -----
     if (window.matchMedia) {
-      var mql = window.matchMedia('(display-mode: standalone)');
+      var displayModeQuery = window.matchMedia('(display-mode: standalone)');
+      var fullscreenQuery = window.matchMedia('(display-mode: fullscreen)');
+      
       var handleDisplayChange = function(e) {
-        if (e.matches || checkIfInstalled()) {
-          permanentlyHideInstallUI();
+        if (e.matches) {
+          // App was just installed
+          hideInstallUI();
+        } else {
+          // App was uninstalled (rare, but possible)
+          // Wait a moment and check again to avoid false positives
+          setTimeout(showInstallUI, 100);
         }
       };
       
       try {
-        mql.addEventListener('change', handleDisplayChange);
+        displayModeQuery.addEventListener('change', handleDisplayChange);
       } catch(e) {
-        try { 
-          mql.addListener(handleDisplayChange); 
-        } catch(e2) {}
+        try { displayModeQuery.addListener(handleDisplayChange); } catch(e2) {}
       }
       
-      // Also check fullscreen mode
-      var mqlFull = window.matchMedia('(display-mode: fullscreen)');
       try {
-        mqlFull.addEventListener('change', handleDisplayChange);
+        fullscreenQuery.addEventListener('change', handleDisplayChange);
       } catch(e) {
-        try { 
-          mqlFull.addListener(handleDisplayChange); 
-        } catch(e2) {}
+        try { fullscreenQuery.addListener(handleDisplayChange); } catch(e2) {}
       }
     }
-
-    // ----- Show correct UI per platform -----
-    if (!checkIfInstalled()) {
-      if (isIos) {
-        if (installBtnWrapper) {
-          installBtnWrapper.style.display = 'none';
-        }
-        if (iosBanner) {
-          iosBanner.style.display = 'block';
-        }
-      } else {
-        if (installBtnWrapper) {
-          installBtnWrapper.style.display = 'flex';
-        }
-      }
-    }
-
-    // ----- Capture beforeinstallprompt -----
+    
+    // ----- Capture beforeinstallprompt (Android Chrome) -----
     window.addEventListener('beforeinstallprompt', function(e) {
-      // Prevent the mini-infobar from appearing on mobile
+      // Prevent mini-infobar
       e.preventDefault();
       deferredPrompt = e;
       
-      // Make sure button is visible
-      if (!isIos && !installUIHidden) {
-        if (installBtnWrapper) {
+      // Ensure button is visible (only if not in app mode)
+      if (!isRunningAsInstalledApp()) {
+        var ua = navigator.userAgent || '';
+        var isIos = /iphone|ipad|ipod/i.test(ua) && !window.MSStream;
+        
+        if (!isIos && installBtnWrapper) {
           installBtnWrapper.style.display = 'flex';
-          installBtnWrapper.style.visibility = 'visible';
-          installBtnWrapper.style.opacity = '1';
         }
       }
     });
-
-    // ----- appinstalled event - fires when user installs the app -----
+    
+    // ----- App installed event -----
     window.addEventListener('appinstalled', function() {
-      console.log('App was installed');
       deferredPrompt = null;
-      permanentlyHideInstallUI();
+      hideInstallUI();
     });
-
-    // ----- Additional visibility change check (for when returning to app) -----
-    document.addEventListener('visibilitychange', function() {
-      if (checkIfInstalled()) {
-        permanentlyHideInstallUI();
-      }
-    });
-
+    
     // ----- Install button click handler -----
     if (installBtn) {
       installBtn.addEventListener('click', function() {
         if (deferredPrompt) {
-          // Show the install prompt
+          // Show native install prompt
           deferredPrompt.prompt();
           
-          // Wait for the user to respond to the prompt
           deferredPrompt.userChoice.then(function(choiceResult) {
             if (choiceResult.outcome === 'accepted') {
-              console.log('User accepted the install prompt');
-              // Hide the button immediately after acceptance
-              permanentlyHideInstallUI();
-            } else {
-              console.log('User dismissed the install prompt');
+              hideInstallUI();
             }
             deferredPrompt = null;
           });
         } else {
-          // No native prompt available - show manual instructions
-          var originalHTML = installBtn.innerHTML;
-          var originalFontSize = installBtn.style.fontSize;
-          var originalLetterSpacing = installBtn.style.letterSpacing;
-          var originalPadding = installBtn.style.padding;
+          // No native prompt - show manual instructions
+          var originalText = installBtn.innerHTML;
           
-          installBtn.innerHTML = '&#9432; USE BROWSER MENU → "ADD TO HOME SCREEN"';
-          installBtn.style.fontSize = '0.7rem';
-          installBtn.style.letterSpacing = '0.6px';
-          installBtn.style.padding = '10px 14px';
-          installBtn.style.whiteSpace = 'nowrap';
+          installBtn.innerHTML = '📱 TAP MENU → "ADD TO HOME SCREEN"';
+          installBtn.style.fontSize = '0.75rem';
+          installBtn.style.padding = '10px 16px';
           
           setTimeout(function() {
-            if (!installUIHidden) {
-              installBtn.innerHTML = originalHTML;
-              installBtn.style.fontSize = originalFontSize;
-              installBtn.style.letterSpacing = originalLetterSpacing;
-              installBtn.style.padding = originalPadding;
-              installBtn.style.whiteSpace = '';
+            if (!isRunningAsInstalledApp()) {
+              installBtn.innerHTML = originalText;
+              installBtn.style.fontSize = '';
+              installBtn.style.padding = '';
             }
           }, 5000);
         }
       });
     }
-
-    // ----- iOS banner close handler -----
+    
+    // ----- iOS banner close button -----
     if (closeIosBanner) {
       closeIosBanner.addEventListener('click', function() {
-        permanentlyHideInstallUI();
+        if (iosBanner) {
+          iosBanner.style.display = 'none';
+        }
+        // Optionally save to sessionStorage to not show again this session
+        try { sessionStorage.setItem('ios_banner_closed', '1'); } catch(e) {}
       });
     }
     
-    // ----- Continuous monitoring for install state (checks every 2 seconds initially) -----
-    var checkCount = 0;
-    var maxChecks = 15; // Check for 30 seconds after page load
-    
-    var monitorInterval = setInterval(function() {
-      checkCount++;
-      
-      if (checkIfInstalled()) {
-        permanentlyHideInstallUI();
-        clearInterval(monitorInterval);
+    // Check if iOS banner was closed earlier in this session
+    try {
+      if (sessionStorage.getItem('ios_banner_closed') === '1') {
+        if (iosBanner) iosBanner.style.display = 'none';
       }
-      
-      // Stop checking after maxChecks
-      if (checkCount >= maxChecks) {
-        clearInterval(monitorInterval);
-      }
-    }, 2000);
+    } catch(e) {}
     
-    // Clean up interval on page unload
-    window.addEventListener('beforeunload', function() {
-      clearInterval(monitorInterval);
-    });
-
   })();
 
   (function() {
