@@ -1,0 +1,26 @@
+{
+  "name": "Comilla Traders | Maritime Command Center",
+  "short_name": "Comilla Traders",
+  "description": "Comilla Traders Maritime Command Center - Maritime Logistics & Global Shipping",
+  "start_url": "/index.html",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#051620",
+  "theme_color": "#0e526d",
+  "icons": [
+    {
+      "src": "https://i.ibb.co.com/1NhJHqR/image-Picsart-Background-Remover.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "https://i.ibb.co.com/1NhJHqR/image-Picsart-Background-Remover.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["business", "productivity"],
+  "lang": "en"
+}
