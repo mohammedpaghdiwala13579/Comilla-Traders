@@ -200,24 +200,25 @@
 
     #installBtnWrapper {
       display: none;
-      justify-content: flex-end;
-      margin-top: 1rem;
-      width: 100%;
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      z-index: 50;
     }
 
     #installBtn {
       display: inline-flex;
       align-items: center;
-      gap: 10px;
+      gap: 7px;
       background: linear-gradient(105deg, #1d6f8d, #0e526d);
       border: 1.5px solid rgba(100, 210, 240, 0.7);
-      padding: 10px 26px;
+      padding: 8px 16px;
       border-radius: 60px;
       color: #ffffff;
       font-family: inherit;
       font-weight: 700;
-      font-size: 0.88rem;
-      letter-spacing: 1.5px;
+      font-size: 0.72rem;
+      letter-spacing: 1.2px;
       cursor: pointer;
       transition: all 0.25s ease;
       box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
@@ -244,7 +245,7 @@
       border-color: rgba(130, 230, 255, 0.9);
     }
 
-    #installBtn svg { width: 18px; height: 18px; flex-shrink: 0; }
+    #installBtn svg { width: 14px; height: 14px; flex-shrink: 0; }
 
     #iosBanner {
       display: none;
@@ -1018,7 +1019,7 @@
     function showInstallUI() {
       if (isRunningAsInstalledApp()) { hideInstallUI(); return; }
       // Show the install button on ALL platforms (iOS gets popup instructions, others get native prompt)
-      if (installBtnWrapper) installBtnWrapper.style.display = 'flex';
+      if (installBtnWrapper) installBtnWrapper.style.display = 'block';
       if (iosBanner) iosBanner.style.display = 'none'; // old banner no longer needed
     }
 
@@ -1043,7 +1044,7 @@
       if (!isRunningAsInstalledApp()) {
         var ua = navigator.userAgent || '';
         var isIos = /iphone|ipad|ipod/i.test(ua) && !window.MSStream;
-        if (!isIos && installBtnWrapper) installBtnWrapper.style.display = 'flex';
+        if (!isIos && installBtnWrapper) installBtnWrapper.style.display = 'block';
       }
     });
 
