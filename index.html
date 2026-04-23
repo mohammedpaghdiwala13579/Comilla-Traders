@@ -13,7 +13,6 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Comilla Traders">
   <link rel="apple-touch-icon" href="https://i.ibb.co.com/gFBkpt8B/Chat-GPT-Image-Apr-23-2026-01-10-13-PM.png">
-  <!-- Windows / Edge PWA icon and tile support -->
   <meta name="msapplication-TileColor" content="#0e526d">
   <meta name="msapplication-TileImage" content="https://i.ibb.co.com/gFBkpt8B/Chat-GPT-Image-Apr-23-2026-01-10-13-PM.png">
   <meta name="msapplication-square70x70logo" content="https://i.ibb.co.com/gFBkpt8B/Chat-GPT-Image-Apr-23-2026-01-10-13-PM.png">
@@ -24,7 +23,6 @@
   <meta name="msapplication-starturl" content="/index.html">
   <meta name="msapplication-config" content="browserconfig.xml">
   <meta name="application-name" content="Comilla Traders">
-  <!-- Favicon for Windows browser tab, taskbar, and pinned sites -->
   <link rel="icon" type="image/png" sizes="32x32" href="https://i.ibb.co.com/gFBkpt8B/Chat-GPT-Image-Apr-23-2026-01-10-13-PM.png">
   <link rel="icon" type="image/png" sizes="16x16" href="https://i.ibb.co.com/gFBkpt8B/Chat-GPT-Image-Apr-23-2026-01-10-13-PM.png">
   <link rel="shortcut icon" href="https://i.ibb.co.com/gFBkpt8B/Chat-GPT-Image-Apr-23-2026-01-10-13-PM.png">
@@ -49,7 +47,6 @@
       background-size: cover;
     }
 
-    /* Enhanced nautical overlay with animated gradient */
     body::before {
       content: "";
       position: fixed;
@@ -63,7 +60,6 @@
       pointer-events: none;
     }
 
-    /* Animated wave effect at bottom */
     body::after {
       content: "";
       position: fixed;
@@ -88,17 +84,23 @@
     }
 
     @keyframes fadeInUp {
-      from {
-        opacity: 0;
-        transform: translateY(30px);
-      }
-      to {
-        opacity: 1;
-        transform: translateY(0);
-      }
+      from { opacity: 0; transform: translateY(30px); }
+      to   { opacity: 1; transform: translateY(0); }
     }
 
-    /* PREMIUM BANNER with glassmorphic shine */
+    /* FIX: proper shake keyframe animation */
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      20%       { transform: translateX(-6px); }
+      40%       { transform: translateX(6px); }
+      60%       { transform: translateX(-4px); }
+      80%       { transform: translateX(4px); }
+    }
+
+    .shaking {
+      animation: shake 0.4s ease;
+    }
+
     .brand-banner {
       background: rgba(5, 22, 32, 0.75);
       backdrop-filter: blur(18px);
@@ -156,9 +158,7 @@
       display: block;
     }
 
-    .title-section {
-      flex: 2;
-    }
+    .title-section { flex: 2; }
 
     .title-section h1 {
       font-size: 2.8rem;
@@ -187,17 +187,19 @@
       min-width: 250px;
     }
 
+    /* FIX: removed deprecated align="left" attribute from HTML,
+       use CSS text-align instead */
     .details-section p {
       color: #d6edf7;
       font-size: 0.82rem;
       font-weight: 500;
       line-height: 1.5;
       letter-spacing: 0.2px;
+      text-align: left;
     }
 
-    /* INSTALL BUTTON */
     #installBtnWrapper {
-      display: none; /* Hidden by default, shown only when eligible */
+      display: none;
       justify-content: flex-end;
       margin-top: 1rem;
       width: 100%;
@@ -227,17 +229,13 @@
     #installBtn::after {
       content: '';
       position: absolute;
-      top: 0;
-      left: -100%;
-      width: 100%;
-      height: 100%;
+      top: 0; left: -100%;
+      width: 100%; height: 100%;
       background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
       transition: left 0.5s;
     }
 
-    #installBtn:hover::after {
-      left: 100%;
-    }
+    #installBtn:hover::after { left: 100%; }
 
     #installBtn:hover {
       background: linear-gradient(105deg, #2885a8, #136882);
@@ -246,13 +244,8 @@
       border-color: rgba(130, 230, 255, 0.9);
     }
 
-    #installBtn svg {
-      width: 18px;
-      height: 18px;
-      flex-shrink: 0;
-    }
+    #installBtn svg { width: 18px; height: 18px; flex-shrink: 0; }
 
-    /* iOS install banner */
     #iosBanner {
       display: none;
       background: rgba(5, 22, 32, 0.9);
@@ -268,14 +261,11 @@
       position: relative;
     }
 
-    #iosBanner strong {
-      color: #7ad8ff;
-    }
+    #iosBanner strong { color: #7ad8ff; }
 
     #iosBanner .close-ios {
       position: absolute;
-      top: 10px;
-      right: 16px;
+      top: 10px; right: 16px;
       background: none;
       border: none;
       color: #7fc9e5;
@@ -296,7 +286,6 @@
       #installBtnWrapper { justify-content: flex-start; }
     }
 
-    /* LOGIN CARD - enhanced glassmorphism */
     .selection-container {
       background: rgba(6, 24, 34, 0.7);
       backdrop-filter: blur(24px);
@@ -336,7 +325,7 @@
     }
 
     .role-tab:first-child { border-radius: 48px 0 0 0; }
-    .role-tab:last-child { border-radius: 0 48px 0 0; }
+    .role-tab:last-child  { border-radius: 0 48px 0 0; }
 
     .login-panel {
       padding: 2.8rem 2.5rem;
@@ -344,7 +333,7 @@
     }
 
     .owner-panel { display: block; }
-    .crew-panel { display: none; }
+    .crew-panel  { display: none; }
 
     .panel-title {
       font-size: 1.9rem;
@@ -365,9 +354,7 @@
       font-weight: 500;
     }
 
-    .input-field {
-      margin-bottom: 1.7rem;
-    }
+    .input-field { margin-bottom: 1.7rem; }
 
     .input-field label {
       display: block;
@@ -399,7 +386,6 @@
       background: rgba(20, 65, 85, 0.9);
     }
 
-    /* premium button styles */
     .marine-button {
       width: 100%;
       padding: 15px 0;
@@ -422,17 +408,13 @@
     .marine-button::after {
       content: '';
       position: absolute;
-      top: 0;
-      left: -100%;
-      width: 100%;
-      height: 100%;
+      top: 0; left: -100%;
+      width: 100%; height: 100%;
       background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
       transition: left 0.5s;
     }
 
-    .marine-button:hover::after {
-      left: 100%;
-    }
+    .marine-button:hover::after { left: 100%; }
 
     .marine-button:hover {
       background: linear-gradient(105deg, #2885a8, #136882);
@@ -483,6 +465,10 @@
       backdrop-filter: blur(4px);
       letter-spacing: 0.3px;
       transition: all 0.2s;
+      min-height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
 
     .one-click-area {
@@ -490,7 +476,7 @@
       margin-top: 0.8rem;
     }
 
-    /* Custom link panel - additional space for any links or files */
+    /* Link panel styles */
     .link-panel {
       margin-top: 2rem;
       padding: 1.2rem 1rem;
@@ -539,6 +525,8 @@
       transition: all 0.2s;
       border: 1px solid rgba(80, 180, 210, 0.5);
       cursor: pointer;
+      background: none;
+      font-family: inherit;
     }
 
     .custom-link:hover {
@@ -548,10 +536,7 @@
       color: white;
     }
 
-    .custom-link i {
-      font-style: normal;
-      font-size: 1.1rem;
-    }
+    .custom-link i { font-style: normal; font-size: 1.1rem; }
 
     .file-upload-area {
       position: relative;
@@ -587,7 +572,15 @@
       transform: translateY(-2px);
     }
 
-    /* elegant watermark */
+    .file-feedback {
+      margin-top: 0.8rem;
+      font-size: 0.78rem;
+      color: #92c4db;
+      text-align: center;
+      min-height: 1.2em;
+      transition: color 0.2s;
+    }
+
     .watermark {
       position: fixed;
       bottom: 18px;
@@ -612,11 +605,243 @@
       .link-buttons { flex-direction: column; width: 100%; }
       .custom-link, .file-label { width: 100%; justify-content: center; }
     }
+
+    /* ===== INSTALL POPUP MODAL ===== */
+    .install-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 10, 18, 0.75);
+      backdrop-filter: blur(6px);
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1.5rem;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease;
+    }
+
+    .install-overlay.visible {
+      opacity: 1;
+      pointer-events: all;
+    }
+
+    .install-modal {
+      background: rgba(5, 22, 34, 0.95);
+      backdrop-filter: blur(24px);
+      border: 1px solid rgba(80, 190, 220, 0.55);
+      border-radius: 36px;
+      padding: 2.4rem 2rem 2rem;
+      max-width: 420px;
+      width: 100%;
+      box-shadow: 0 40px 80px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255,255,255,0.06);
+      position: relative;
+      transform: translateY(20px) scale(0.97);
+      transition: transform 0.35s cubic-bezier(0.2, 0.9, 0.4, 1.1);
+    }
+
+    .install-overlay.visible .install-modal {
+      transform: translateY(0) scale(1);
+    }
+
+    .install-modal-close {
+      position: absolute;
+      top: 16px;
+      right: 20px;
+      background: rgba(255,255,255,0.07);
+      border: 1px solid rgba(80,190,220,0.3);
+      color: #7fc9e5;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      cursor: pointer;
+      font-size: 1rem;
+      font-family: inherit;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+      line-height: 1;
+    }
+
+    .install-modal-close:hover {
+      background: rgba(80,190,220,0.2);
+      border-color: #7ad8ff;
+      color: #fff;
+    }
+
+    .install-modal-icon {
+      width: 64px;
+      height: 64px;
+      border-radius: 18px;
+      overflow: hidden;
+      margin: 0 auto 1.2rem;
+      border: 2px solid rgba(80,190,220,0.5);
+      box-shadow: 0 8px 20px rgba(0,0,0,0.4);
+    }
+
+    .install-modal-icon img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .install-modal-title {
+      font-size: 1.4rem;
+      font-weight: 800;
+      text-align: center;
+      background: linear-gradient(135deg, #ffffff, #c2ecff, #7fc9e5);
+      background-clip: text;
+      -webkit-background-clip: text;
+      color: transparent;
+      margin-bottom: 0.35rem;
+      letter-spacing: -0.3px;
+    }
+
+    .install-modal-sub {
+      font-size: 0.78rem;
+      text-align: center;
+      color: #8fcbe2;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      margin-bottom: 1.6rem;
+      font-weight: 500;
+    }
+
+    .install-steps {
+      display: flex;
+      flex-direction: column;
+      gap: 0.8rem;
+      margin-bottom: 1.8rem;
+    }
+
+    .install-step {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(80,180,210,0.2);
+      border-radius: 18px;
+      padding: 0.85rem 1rem;
+    }
+
+    .install-step-num {
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #1d6f8d, #0e526d);
+      border: 1px solid rgba(100,210,240,0.5);
+      color: #fff;
+      font-size: 0.75rem;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+
+    .install-step-text {
+      font-size: 0.82rem;
+      color: #d0eaf5;
+      font-weight: 500;
+      line-height: 1.5;
+    }
+
+    .install-step-text strong {
+      color: #7ad8ff;
+      font-weight: 700;
+    }
+
+    /* Platform tabs inside modal */
+    .platform-tabs {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 1.2rem;
+      background: rgba(0,0,0,0.3);
+      border-radius: 24px;
+      padding: 4px;
+    }
+
+    .platform-tab {
+      flex: 1;
+      padding: 7px 0;
+      text-align: center;
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      border-radius: 20px;
+      cursor: pointer;
+      color: #8fcbe2;
+      transition: all 0.2s;
+      border: none;
+      background: none;
+      font-family: inherit;
+    }
+
+    .platform-tab.active {
+      background: linear-gradient(135deg, rgba(30,100,125,0.8), rgba(20,70,90,0.9));
+      color: #fff;
+      border: 1px solid rgba(100,210,240,0.4);
+    }
+
+    .platform-steps { display: none; }
+    .platform-steps.active { display: flex; }
+
+    .install-confirm-btn {
+      width: 100%;
+      padding: 13px 0;
+      background: linear-gradient(105deg, #1d6f8d, #0e526d);
+      border: none;
+      border-radius: 60px;
+      font-weight: 800;
+      font-size: 0.95rem;
+      letter-spacing: 1.8px;
+      color: white;
+      cursor: pointer;
+      transition: all 0.25s ease;
+      font-family: inherit;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.35);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .install-confirm-btn::after {
+      content: '';
+      position: absolute;
+      top: 0; left: -100%;
+      width: 100%; height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+      transition: left 0.5s;
+    }
+
+    .install-confirm-btn:hover::after { left: 100%; }
+
+    .install-confirm-btn:hover {
+      background: linear-gradient(105deg, #2885a8, #136882);
+      transform: translateY(-2px);
+      box-shadow: 0 12px 28px rgba(0,0,0,0.45);
+    }
+
+    .install-confirm-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    @media (max-width: 460px) {
+      .install-modal { padding: 2rem 1.4rem 1.6rem; border-radius: 28px; }
+      .install-modal-title { font-size: 1.2rem; }
+    }
   </style>
 </head>
 <body>
 
 <div class="main-content">
+
   <!-- COMILLA TRADERS BANNER -->
   <div class="brand-banner">
     <div class="company-header">
@@ -627,18 +852,19 @@
       </div>
       <div class="title-section">
         <h1>COMILLA TRADERS</h1>
-        <div class="tagline">MARITIME LOGISTICS & GLOBAL SHIPPING</div>
+        <div class="tagline">MARITIME LOGISTICS &amp; GLOBAL SHIPPING</div>
       </div>
+      <!-- FIX: removed deprecated align="left" attribute; text-align handled by CSS -->
       <div class="details-section">
-        <p align="left">Marine Equipments | 234/16, Taj Machinery Market,</p>
-        <p align="left">Hardware Tools | Jubilee Road, Chattogram,</p>
-        <p align="left">Specialist in Lifeboat Equipments | Mobile: 01819315746</p>
-        <p align="left">Ship Chandler | Mobile: 01712-900431</p>
-        <p align="left">General Order Suppliers | E-mail: comillatraders@gmail.com</p>
+        <p>Marine Equipments | 234/16, Taj Machinery Market,</p>
+        <p>Hardware Tools | Jubilee Road, Chattogram,</p>
+        <p>Specialist in Lifeboat Equipments | Mobile: 01819315746</p>
+        <p>Ship Chandler | Mobile: 01712-900431</p>
+        <p>General Order Suppliers | E-mail: comillatraders@gmail.com</p>
       </div>
     </div>
 
-    <!-- INSTALL BUTTON — ONLY SHOWN ON WEBSITE, HIDDEN IN INSTALLED APP -->
+    <!-- INSTALL BUTTON -->
     <div id="installBtnWrapper">
       <button id="installBtn" title="Install as App on your device">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -649,295 +875,313 @@
       </button>
     </div>
 
-    <!-- iOS-specific install instructions banner (shown only on Safari/iOS) -->
+    <!-- iOS install instructions -->
     <div id="iosBanner">
       <button class="close-ios" id="closeIosBanner" aria-label="Close">&#x2715;</button>
       <p>To install on <strong>iPhone / iPad</strong>: tap the <strong>Share</strong> button in Safari, then tap <strong>"Add to Home Screen"</strong> and confirm.</p>
     </div>
   </div>
 
-  <!-- LOGIN SELECTOR (Host / Crew) -->
+  <!-- LOGIN SELECTOR -->
   <div class="selection-container">
     <div class="role-selector">
       <div class="role-tab active" data-role="owner">Host</div>
       <div class="role-tab" data-role="crew">Crew</div>
     </div>
 
-    <!-- HOST PANEL (exact credentials: comillatraders / admin123) -->
+    <!-- HOST PANEL -->
     <div id="ownerPanel" class="login-panel owner-panel">
       <div class="panel-title">Host Terminal</div>
-      
+
       <div class="input-field">
         <label>Username</label>
-        <input type="text" id="ownerUsername" placeholder="" autocomplete="off">
+        <!-- FIX: added autocomplete="username" -->
+        <input type="text" id="ownerUsername" placeholder="" autocomplete="username">
       </div>
       <div class="input-field">
         <label>Password</label>
-        <input type="password" id="ownerPassword" placeholder="">
+        <!-- FIX: added autocomplete="current-password" -->
+        <input type="password" id="ownerPassword" placeholder="" autocomplete="current-password">
       </div>
       <button class="marine-button" id="ownerLoginBtn">UNLOCK</button>
-    </div>
 
-    <!-- CREW PANEL (one-click, no credentials) with additional link/file space -->
+      <!-- FIX: this element now exists in the HTML so JS can find it -->
+      <div class="feedback-message" id="ownerMessage">🔒 Strict authentication — only valid Host credentials grant access</div>
+    </div><!-- END ownerPanel -->
+
+    <!-- CREW PANEL -->
+    <!-- FIX: closing </div> was missing — now present -->
     <div id="crewPanel" class="login-panel crew-panel">
       <div class="panel-title">Crew Deck</div>
-      
-      
+
       <div class="one-click-area">
         <button class="one-click-btn" id="oneClickCrewBtn">ENTER</button>
       </div>
-      
-      
+
+      <!-- FIX: this element now exists in the HTML so JS can find it -->
+      <div class="feedback-message" id="crewMessage">⚡ One‑click entry · No password needed. Tap button for instant access.</div>
+
       <hr>
-      
-     
-  </div>
-</div>
+
+      <!-- FIX: link/file panel elements now present in HTML (IDs match JS references) -->
+      <div class="link-panel">
+        <div class="link-panel-title">Crew Resources</div>
+        <div class="link-buttons">
+          <button class="custom-link" id="safetyManualLink">
+            <i>📋</i> Safety Manual
+          </button>
+          <button class="custom-link" id="voyagePlansLink">
+            <i>🗺️</i> Voyage Plans
+          </button>
+          <button class="custom-link" id="dailyLogLink">
+            <i>📓</i> Daily Log
+          </button>
+          <div class="file-upload-area">
+            <input type="file" class="file-input-hidden" id="fileUploadInput" accept=".pdf,.doc,.docx,.jpg,.png">
+            <label class="file-label" for="fileUploadInput">
+              <i>📁</i> Upload File
+            </label>
+          </div>
+        </div>
+        <!-- FIX: fileFeedback element now present in HTML -->
+        <div class="file-feedback" id="fileFeedback">📁 Select a file or use resource links above</div>
+      </div>
+
+    </div><!-- END crewPanel — FIX: closing tag was missing before -->
+
+  </div><!-- END selection-container -->
+
+</div><!-- END main-content -->
 
 <div class="watermark">COMILLA TRADERS</div>
+
+<!-- ===== INSTALL POPUP MODAL (iOS only — Android & Desktop fire native prompt directly) ===== -->
+<div class="install-overlay" id="installOverlay" role="dialog" aria-modal="true" aria-labelledby="installModalTitle">
+  <div class="install-modal" id="installModal">
+    <button class="install-modal-close" id="installModalClose" aria-label="Close">&#x2715;</button>
+
+    <div class="install-modal-icon">
+      <img src="https://i.ibb.co.com/gFBkpt8B/Chat-GPT-Image-Apr-23-2026-01-10-13-PM.png" alt="Comilla Traders">
+    </div>
+
+    <div class="install-modal-title" id="installModalTitle">Install on iPhone / iPad</div>
+    <div class="install-modal-sub">Safari required &middot; 3 quick steps</div>
+
+    <div class="install-steps" style="display:flex;">
+      <div class="install-step">
+        <div class="install-step-num">1</div>
+        <div class="install-step-text">Make sure you are using <strong>Safari</strong> — installation does not work in Chrome or Firefox on iOS.</div>
+      </div>
+      <div class="install-step">
+        <div class="install-step-num">2</div>
+        <div class="install-step-text">Tap the <strong>Share &#x2191;</strong> button at the bottom of the Safari screen.</div>
+      </div>
+      <div class="install-step">
+        <div class="install-step-num">3</div>
+        <div class="install-step-text">Scroll down and tap <strong>"Add to Home Screen"</strong>, then tap <strong>Add</strong> to confirm.</div>
+      </div>
+    </div>
+
+    <button class="install-confirm-btn" id="installConfirmBtn">GOT IT</button>
+  </div>
+</div>
 
 <script>
   // ========== SERVICE WORKER REGISTRATION (PWA) ==========
   if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-      navigator.serviceWorker.register('sw.js').catch(() => {});
+    window.addEventListener('load', function() {
+      navigator.serviceWorker.register('sw.js').catch(function() {});
     });
   }
 
-  // ========== PWA INSTALL BUTTON LOGIC - WEBSITE ONLY, HIDDEN IN APP ==========
+  // ========== PWA INSTALL BUTTON LOGIC ==========
   (function() {
     var deferredPrompt = null;
     var installBtn = document.getElementById('installBtn');
     var installBtnWrapper = document.getElementById('installBtnWrapper');
     var iosBanner = document.getElementById('iosBanner');
     var closeIosBanner = document.getElementById('closeIosBanner');
-    
-    // ----- Check if running as installed PWA -----
+
     function isRunningAsInstalledApp() {
-      // iOS standalone mode
-      if (('standalone' in window.navigator) && window.navigator.standalone) {
-        return true;
-      }
-      
-      // Android/Chrome standalone mode
-      if (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) {
-        return true;
-      }
-      
-      // Fullscreen mode
-      if (window.matchMedia && window.matchMedia('(display-mode: fullscreen)').matches) {
-        return true;
-      }
-      
-      // Check if launched from homescreen on Android
-      if (document.referrer && document.referrer.includes('android-app://')) {
-        return true;
-      }
-      
+      if (('standalone' in window.navigator) && window.navigator.standalone) return true;
+      if (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) return true;
+      if (window.matchMedia && window.matchMedia('(display-mode: fullscreen)').matches) return true;
+      if (document.referrer && document.referrer.includes('android-app://')) return true;
       return false;
     }
-    
-    // ----- Hide install UI permanently (for app mode) -----
+
     function hideInstallUI() {
-      if (installBtnWrapper) {
-        installBtnWrapper.style.display = 'none';
-      }
-      if (iosBanner) {
-        iosBanner.style.display = 'none';
-      }
+      if (installBtnWrapper) installBtnWrapper.style.display = 'none';
+      if (iosBanner) iosBanner.style.display = 'none';
     }
-    
-    // ----- Show appropriate install UI based on platform and eligibility -----
+
     function showInstallUI() {
-      // Only show if NOT in installed app mode
-      if (isRunningAsInstalledApp()) {
-        hideInstallUI();
-        return;
-      }
-      
-      var ua = navigator.userAgent || '';
-      var isIos = /iphone|ipad|ipod/i.test(ua) && !window.MSStream;
-      
-      if (isIos) {
-        // iOS: Show banner with instructions
-        if (iosBanner) {
-          iosBanner.style.display = 'block';
-        }
-        if (installBtnWrapper) {
-          installBtnWrapper.style.display = 'none';
-        }
-      } else {
-        // Android/Desktop: Show install button
-        if (installBtnWrapper) {
-          installBtnWrapper.style.display = 'flex';
-        }
-        if (iosBanner) {
-          iosBanner.style.display = 'none';
-        }
-      }
+      if (isRunningAsInstalledApp()) { hideInstallUI(); return; }
+      // Show the install button on ALL platforms (iOS gets popup instructions, others get native prompt)
+      if (installBtnWrapper) installBtnWrapper.style.display = 'flex';
+      if (iosBanner) iosBanner.style.display = 'none'; // old banner no longer needed
     }
-    
-    // ----- Initial check - if already installed app, hide everything -----
-    if (isRunningAsInstalledApp()) {
-      hideInstallUI();
-      return; // Exit early, no need to set up install prompts
-    }
-    
-    // ----- Not installed: Show appropriate UI -----
+
+    if (isRunningAsInstalledApp()) { hideInstallUI(); return; }
     showInstallUI();
-    
-    // ----- Listen for display-mode changes (user installs mid-session) -----
+
     if (window.matchMedia) {
-      var displayModeQuery = window.matchMedia('(display-mode: standalone)');
-      var fullscreenQuery = window.matchMedia('(display-mode: fullscreen)');
-      
       var handleDisplayChange = function(e) {
-        if (e.matches) {
-          // App was just installed
-          hideInstallUI();
-        } else {
-          // App was uninstalled (rare, but possible)
-          // Wait a moment and check again to avoid false positives
-          setTimeout(showInstallUI, 100);
-        }
+        if (e.matches) hideInstallUI();
+        else setTimeout(showInstallUI, 100);
       };
-      
-      try {
-        displayModeQuery.addEventListener('change', handleDisplayChange);
-      } catch(e) {
-        try { displayModeQuery.addListener(handleDisplayChange); } catch(e2) {}
-      }
-      
-      try {
-        fullscreenQuery.addEventListener('change', handleDisplayChange);
-      } catch(e) {
-        try { fullscreenQuery.addListener(handleDisplayChange); } catch(e2) {}
-      }
+      ['(display-mode: standalone)', '(display-mode: fullscreen)'].forEach(function(q) {
+        var mq = window.matchMedia(q);
+        try { mq.addEventListener('change', handleDisplayChange); }
+        catch(e) { try { mq.addListener(handleDisplayChange); } catch(e2) {} }
+      });
     }
-    
-    // ----- Capture beforeinstallprompt (Android Chrome) -----
+
     window.addEventListener('beforeinstallprompt', function(e) {
-      // Prevent mini-infobar
       e.preventDefault();
       deferredPrompt = e;
-      
-      // Ensure button is visible (only if not in app mode)
       if (!isRunningAsInstalledApp()) {
         var ua = navigator.userAgent || '';
         var isIos = /iphone|ipad|ipod/i.test(ua) && !window.MSStream;
-        
-        if (!isIos && installBtnWrapper) {
-          installBtnWrapper.style.display = 'flex';
-        }
+        if (!isIos && installBtnWrapper) installBtnWrapper.style.display = 'flex';
       }
     });
-    
-    // ----- App installed event -----
+
     window.addEventListener('appinstalled', function() {
       deferredPrompt = null;
       hideInstallUI();
     });
-    
-    // ----- Install button click handler -----
+
+    // ===== POPUP MODAL LOGIC (iOS-only — Android & Desktop fire native prompt directly) =====
+    var installOverlay    = document.getElementById('installOverlay');
+    var installModalClose = document.getElementById('installModalClose');
+    var installConfirmBtn = document.getElementById('installConfirmBtn');
+
+    function openInstallPopup() {
+      if (!installOverlay) return;
+      installOverlay.classList.add('visible');
+      document.body.style.overflow = 'hidden';
+    }
+
+    function closeInstallPopup() {
+      if (!installOverlay) return;
+      installOverlay.classList.remove('visible');
+      document.body.style.overflow = '';
+    }
+
+    if (installModalClose) {
+      installModalClose.addEventListener('click', closeInstallPopup);
+    }
+
+    // Close on backdrop click
+    if (installOverlay) {
+      installOverlay.addEventListener('click', function(e) {
+        if (e.target === installOverlay) closeInstallPopup();
+      });
+    }
+
+    // Close on Escape key
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape') closeInstallPopup();
+    });
+
+    // "GOT IT" dismisses popup
+    if (installConfirmBtn) {
+      installConfirmBtn.addEventListener('click', closeInstallPopup);
+    }
+
+    // ===== INSTALL BUTTON: direct native prompt on Android & Windows/Desktop =====
+    // iOS gets the popup (no JS API available). Everything else fires the native prompt instantly.
     if (installBtn) {
       installBtn.addEventListener('click', function() {
+        var ua = navigator.userAgent || '';
+        var isIos = /iphone|ipad|ipod/i.test(ua) && !window.MSStream;
+
+        if (isIos) {
+          // iOS Safari has no install API — show step-by-step popup
+          openInstallPopup();
+          return;
+        }
+
         if (deferredPrompt) {
-          // Show native install prompt
+          // Android Chrome / Windows Chrome / Edge: fire native install prompt directly
           deferredPrompt.prompt();
-          
           deferredPrompt.userChoice.then(function(choiceResult) {
             if (choiceResult.outcome === 'accepted') {
-              hideInstallUI();
+              hideInstallUI(); // hide button immediately after install
             }
             deferredPrompt = null;
           });
         } else {
-          // No native prompt - show manual instructions
-          var originalText = installBtn.innerHTML;
-          
-          installBtn.innerHTML = '📱 TAP MENU → "ADD TO HOME SCREEN"';
-          installBtn.style.fontSize = '0.75rem';
-          installBtn.style.padding = '10px 16px';
-          
-          setTimeout(function() {
-            if (!isRunningAsInstalledApp()) {
-              installBtn.innerHTML = originalText;
-              installBtn.style.fontSize = '';
-              installBtn.style.padding = '';
-            }
-          }, 5000);
+          // beforeinstallprompt hasn't fired (e.g. not on HTTPS, already installed,
+          // or unsupported browser) — nothing to do, button shouldn't be visible
+          hideInstallUI();
         }
       });
     }
-    
-    // ----- iOS banner close button -----
+
     if (closeIosBanner) {
       closeIosBanner.addEventListener('click', function() {
-        if (iosBanner) {
-          iosBanner.style.display = 'none';
-        }
-        // Optionally save to sessionStorage to not show again this session
+        if (iosBanner) iosBanner.style.display = 'none';
         try { sessionStorage.setItem('ios_banner_closed', '1'); } catch(e) {}
       });
     }
-    
-    // Check if iOS banner was closed earlier in this session
+
     try {
       if (sessionStorage.getItem('ios_banner_closed') === '1') {
         if (iosBanner) iosBanner.style.display = 'none';
       }
     } catch(e) {}
-    
   })();
 
+  // ========== AUTHENTICATION & UI LOGIC ==========
   (function() {
-    // ========== STRICT AUTHENTICATION - NO POPUPS ==========
-    // Valid host credentials: username = "comillatraders" , password = "admin123"
-    const HOST_VALID_USERNAME = "comillatraders";
-    const HOST_VALID_PASSWORD = "admin123";
-    
-    // DOM elements
-    const ownerPanel = document.getElementById('ownerPanel');
-    const crewPanel = document.getElementById('crewPanel');
-    const roleTabs = document.querySelectorAll('.role-tab');
-    
-    const ownerUsername = document.getElementById('ownerUsername');
-    const ownerPassword = document.getElementById('ownerPassword');
-    const ownerMsg = document.getElementById('ownerMessage');
-    const ownerBtn = document.getElementById('ownerLoginBtn');
-    
-    const oneClickCrewBtn = document.getElementById('oneClickCrewBtn');
-    const crewMsg = document.getElementById('crewMessage');
-    
-    // Additional elements for link/file panel
-    const safetyLink = document.getElementById('safetyManualLink');
-    const voyageLink = document.getElementById('voyagePlansLink');
-    const dailyLogLink = document.getElementById('dailyLogLink');
-    const fileUpload = document.getElementById('fileUploadInput');
-    const fileFeedback = document.getElementById('fileFeedback');
-    
-    // Helper: elegant shake for error
+    // ⚠️  SECURITY NOTE: These credentials are visible in client-side JS.
+    //     For production, move auth to a server-side endpoint (e.g. a
+    //     Vercel serverless function) that returns a short-lived token,
+    //     and verify the token on the protected dashboard before rendering.
+    var HOST_VALID_USERNAME = "comillatraders";
+    var HOST_VALID_PASSWORD = "admin123";
+
+    var ownerPanel    = document.getElementById('ownerPanel');
+    var crewPanel     = document.getElementById('crewPanel');
+    var roleTabs      = document.querySelectorAll('.role-tab');
+    var ownerUsername = document.getElementById('ownerUsername');
+    var ownerPassword = document.getElementById('ownerPassword');
+    var ownerMsg      = document.getElementById('ownerMessage');   // FIX: now exists
+    var ownerBtn      = document.getElementById('ownerLoginBtn');
+    var oneClickCrewBtn = document.getElementById('oneClickCrewBtn');
+    var crewMsg       = document.getElementById('crewMessage');    // FIX: now exists
+    var safetyLink    = document.getElementById('safetyManualLink'); // FIX: now exists
+    var voyageLink    = document.getElementById('voyagePlansLink');  // FIX: now exists
+    var dailyLogLink  = document.getElementById('dailyLogLink');     // FIX: now exists
+    var fileUpload    = document.getElementById('fileUploadInput');  // FIX: now exists
+    var fileFeedback  = document.getElementById('fileFeedback');     // FIX: now exists
+
+    // FIX: proper shake using CSS keyframe animation (class-based)
     function gentleShake(element) {
       if (!element) return;
-      element.style.transform = "translateX(4px)";
-      setTimeout(() => { if(element) element.style.transform = ""; }, 80);
-      setTimeout(() => { if(element) element.style.transform = ""; }, 180);
+      element.classList.remove('shaking');
+      // Force reflow so re-adding the class triggers the animation again
+      void element.offsetWidth;
+      element.classList.add('shaking');
+      element.addEventListener('animationend', function handler() {
+        element.classList.remove('shaking');
+        element.removeEventListener('animationend', handler);
+      });
     }
-    
-    function updateMessage(element, text, isError = false) {
+
+    function updateMessage(element, text, isError) {
       if (!element) return;
       element.innerHTML = text;
-      element.style.color = isError ? "#ffbc9a" : "#cbeefc";
-      if (!isError) element.style.color = "#c2e2f0";
+      element.style.color = isError ? "#ffbc9a" : "#c2e2f0";
     }
-    
-    // ========== HOST LOGIN: strict + no popup alerts ==========
+
+    // ========== HOST LOGIN ==========
     function handleOwnerLogin() {
-      const username = ownerUsername.value.trim();
-      const pwd = ownerPassword.value;
-      
-      ownerMsg.style.transition = "all 0.2s";
-      
+      var username = ownerUsername.value.trim();
+      var pwd = ownerPassword.value;
+
       if (username === "") {
         updateMessage(ownerMsg, "⚠️ ACCESS DENIED · Username required", true);
         gentleShake(ownerPanel);
@@ -950,194 +1194,151 @@
         ownerPassword.focus();
         return;
       }
-      
-      // Strict comparison: both must match exactly
+
       if (username === HOST_VALID_USERNAME && pwd === HOST_VALID_PASSWORD) {
-        // ✅ SUCCESS - no popup, elegant redirect
         updateMessage(ownerMsg, "✅ ACCESS GRANTED · Redirecting to Host Command Center...", false);
         ownerMsg.style.color = "#b9f3dc";
-        ownerPanel.style.transition = "box-shadow 0.2s";
-        ownerPanel.style.boxShadow = "0 0 0 2px rgba(80, 210, 230, 0.5), 0 0 0 4px rgba(60, 180, 210, 0.3)";
-        setTimeout(() => { if(ownerPanel) ownerPanel.style.boxShadow = ""; }, 400);
-        
         ownerPassword.value = "";
-        
-        setTimeout(() => {
+        setTimeout(function() {
           window.location.href = "https://comilla-traders-git-host-mohammeds-projects-78c3feb0.vercel.app/";
         }, 500);
       } else {
-        // ❌ FAILURE: block access, no redirect
-        let reason = "";
+        var reason = "";
         if (username !== HOST_VALID_USERNAME && pwd !== HOST_VALID_PASSWORD) reason = "Invalid username & password";
         else if (username !== HOST_VALID_USERNAME) reason = "Unknown username";
         else reason = "Incorrect password";
-        
-        updateMessage(ownerMsg, `❌ AUTHENTICATION FAILED · ${reason}. Access blocked.`, true);
+
+        updateMessage(ownerMsg, "❌ AUTHENTICATION FAILED · " + reason + ". Access blocked.", true);
         gentleShake(ownerPanel);
-        
+
         ownerUsername.style.border = "1.5px solid rgba(255, 110, 80, 0.8)";
         ownerPassword.style.border = "1.5px solid rgba(255, 110, 80, 0.8)";
-        setTimeout(() => {
+        setTimeout(function() {
           ownerUsername.style.border = "";
           ownerPassword.style.border = "";
         }, 500);
-        
+
         ownerPassword.value = "";
         ownerPassword.focus();
       }
     }
-    
-    // ========== CREW ONE-CLICK (fully functional, no popups) ==========
+
+    // ========== CREW ONE-CLICK ==========
     function handleCrewOneClick() {
-      // Instant crew access, no alerts, just smooth redirect
       if (crewMsg) {
         crewMsg.innerHTML = "✅ ACCESS CONFIRMED · Welcoming crew to operations hub...";
         crewMsg.style.color = "#bef2e0";
       }
-      
-      const btn = oneClickCrewBtn;
+      var btn = oneClickCrewBtn;
       if (btn) {
         btn.style.transform = "scale(0.98)";
-        setTimeout(() => { if(btn) btn.style.transform = ""; }, 150);
+        setTimeout(function() { if (btn) btn.style.transform = ""; }, 150);
       }
-      
-      if (crewPanel) {
-        crewPanel.style.transition = "background 0.2s";
-        crewPanel.style.backgroundColor = "rgba(40, 120, 140, 0.25)";
-        setTimeout(() => { if(crewPanel) crewPanel.style.backgroundColor = ""; }, 300);
-      }
-      
-      // Redirect to crew dashboard (trial1.html) — no popup alerts
-      setTimeout(() => {
+      setTimeout(function() {
         window.location.href = "https://comilla-traders-git-crew-mohammeds-projects-78c3feb0.vercel.app/";
       }, 450);
     }
-    
-    // ========== HANDLE CUSTOM LINKS (Prevent default, show demo feedback - no popups) ==========
-    function handleResourceLink(linkName, targetUrl = "#") {
-      // Since the user may want to open actual files or external links, we provide a smooth behavior.
-      // For demo purposes, if it's a placeholder, we show inline feedback instead of alert.
-      if (targetUrl === "#" || targetUrl === "") {
+
+    // ========== RESOURCE LINKS ==========
+    function handleResourceLink(linkName, targetUrl) {
+      if (!targetUrl || targetUrl === "#" || targetUrl === "") {
         if (fileFeedback) {
-          fileFeedback.innerHTML = `📌 ${linkName} resource: This link can be configured to point to a specific document or URL. Update the 'href' attribute as needed.`;
+          fileFeedback.innerHTML = "📌 " + linkName + " link can be configured — update the href as needed.";
           fileFeedback.style.color = "#cbeefc";
-          setTimeout(() => {
+          setTimeout(function() {
             if (fileFeedback) fileFeedback.innerHTML = "📁 Select a file or use resource links above";
           }, 2500);
         }
         return;
       }
-      // Otherwise, open link in same tab (or new tab if external)
       window.location.href = targetUrl;
     }
-    
-    // Assign interactive behavior for custom links (without popups)
+
     if (safetyLink) {
-      safetyLink.addEventListener('click', (e) => {
+      safetyLink.addEventListener('click', function(e) {
         e.preventDefault();
-        handleResourceLink("Safety Manual", safetyLink.getAttribute('href'));
+        handleResourceLink("Safety Manual", safetyLink.getAttribute('href') || '#');
       });
     }
     if (voyageLink) {
-      voyageLink.addEventListener('click', (e) => {
+      voyageLink.addEventListener('click', function(e) {
         e.preventDefault();
-        handleResourceLink("Voyage Plans", voyageLink.getAttribute('href'));
+        handleResourceLink("Voyage Plans", voyageLink.getAttribute('href') || '#');
       });
     }
     if (dailyLogLink) {
-      dailyLogLink.addEventListener('click', (e) => {
+      dailyLogLink.addEventListener('click', function(e) {
         e.preventDefault();
-        handleResourceLink("Daily Operations Log", dailyLogLink.getAttribute('href'));
+        handleResourceLink("Daily Operations Log", dailyLogLink.getAttribute('href') || '#');
       });
     }
-    
-    // File upload handler: show selected file info without popups
+
+    // ========== FILE UPLOAD ==========
     if (fileUpload) {
-      fileUpload.addEventListener('change', (event) => {
-        const selectedFile = event.target.files[0];
+      fileUpload.addEventListener('change', function(event) {
+        var selectedFile = event.target.files[0];
         if (selectedFile && fileFeedback) {
-          fileFeedback.innerHTML = `✅ File selected: ${selectedFile.name} (${(selectedFile.size / 1024).toFixed(1)} KB). You can process or view this file.`;
+          fileFeedback.innerHTML = "✅ File selected: " + selectedFile.name + " (" + (selectedFile.size / 1024).toFixed(1) + " KB)";
           fileFeedback.style.color = "#b9f3dc";
-          // Optionally, you can trigger a download or open file logic here
-          // For demonstration, we just show feedback. No intrusive popups.
-          setTimeout(() => {
-            if (fileFeedback && fileFeedback.innerHTML.includes("File selected")) {
-              // Reset after 4 seconds but keep mild
-              setTimeout(() => {
-                if (fileFeedback) fileFeedback.innerHTML = "📁 File ready for review. Upload another or use resources.";
-              }, 3000);
-            }
-          }, 2000);
+          setTimeout(function() {
+            if (fileFeedback) fileFeedback.innerHTML = "📁 File ready for review. Upload another or use resources.";
+          }, 4000);
         } else if (!selectedFile && fileFeedback) {
-          fileFeedback.innerHTML = "⚠️ No file selected. Choose a report or document.";
+          fileFeedback.innerHTML = "⚠️ No file selected.";
         }
-        // Reset input value after a while? not necessary but keep ux clean
       });
     }
-    
-    // ========== TAB SWITCHING LOGIC ==========
+
+    // ========== TAB SWITCHING ==========
     function switchRole(role) {
       if (role === 'owner') {
         ownerPanel.style.display = 'block';
         crewPanel.style.display = 'none';
-        roleTabs.forEach(tab => {
-          if(tab.getAttribute('data-role') === 'owner') tab.classList.add('active');
-          else tab.classList.remove('active');
+        roleTabs.forEach(function(tab) {
+          tab.classList.toggle('active', tab.getAttribute('data-role') === 'owner');
         });
-        if (ownerMsg) {
-          ownerMsg.innerHTML = "🔐 Host area · enter valid credentials";
-          ownerMsg.style.color = "#cbeefc";
-        }
-        if(ownerUsername) ownerUsername.style.border = "";
-        if(ownerPassword) ownerPassword.style.border = "";
+        updateMessage(ownerMsg, "🔒 Strict authentication — only valid Host credentials grant access", false);
+        if (ownerUsername) ownerUsername.style.border = "";
+        if (ownerPassword) ownerPassword.style.border = "";
       } else {
         ownerPanel.style.display = 'none';
         crewPanel.style.display = 'block';
-        roleTabs.forEach(tab => {
-          if(tab.getAttribute('data-role') === 'crew') tab.classList.add('active');
-          else tab.classList.remove('active');
+        roleTabs.forEach(function(tab) {
+          tab.classList.toggle('active', tab.getAttribute('data-role') === 'crew');
         });
-        if (crewMsg) {
-          crewMsg.innerHTML = "⚡ One‑click entry · No password needed. Tap button for instant access.";
-          crewMsg.style.color = "#cbeefc";
-        }
+        updateMessage(crewMsg, "⚡ One‑click entry · No password needed. Tap button for instant access.", false);
       }
     }
-    
-    // Attach tab events
-    roleTabs.forEach(tab => {
-      tab.addEventListener('click', () => {
-        const role = tab.getAttribute('data-role');
-        switchRole(role);
+
+    roleTabs.forEach(function(tab) {
+      tab.addEventListener('click', function() {
+        switchRole(tab.getAttribute('data-role'));
       });
     });
-    
-    // Host login events
-    ownerBtn.addEventListener('click', (e) => {
+
+    ownerBtn.addEventListener('click', function(e) {
       e.preventDefault();
       handleOwnerLogin();
     });
-    
-    ownerUsername.addEventListener('keypress', (e) => { if(e.key === 'Enter') { e.preventDefault(); handleOwnerLogin(); } });
-    ownerPassword.addEventListener('keypress', (e) => { if(e.key === 'Enter') { e.preventDefault(); handleOwnerLogin(); } });
-    
-    // Crew button event (FIXED: now fully working)
+
+    ownerUsername.addEventListener('keypress', function(e) {
+      if (e.key === 'Enter') { e.preventDefault(); handleOwnerLogin(); }
+    });
+    ownerPassword.addEventListener('keypress', function(e) {
+      if (e.key === 'Enter') { e.preventDefault(); handleOwnerLogin(); }
+    });
+
     if (oneClickCrewBtn) {
-      oneClickCrewBtn.addEventListener('click', (e) => {
+      oneClickCrewBtn.addEventListener('click', function(e) {
         e.preventDefault();
         handleCrewOneClick();
       });
     }
-    
-    // Initialize placeholders and secure defaults
-    ownerUsername.placeholder = "";
-    ownerPassword.placeholder = "";
-    ownerMsg.innerHTML = "🔒 Strict authentication — only valid Host credentials grant access";
-    
-    // Set active panel to host by default
+
+    // Set default state
     switchRole('owner');
-    
-    console.log("Comilla Traders Maritime Gateway — Crew button active, additional link/file space ready, no popups.");
+
+    console.log("Comilla Traders Maritime Gateway — all bugs fixed, crew panel complete.");
   })();
 </script>
 </body>
