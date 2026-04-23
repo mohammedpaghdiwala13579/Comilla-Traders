@@ -692,7 +692,25 @@
       
       <hr>
       
-     
+      <!-- Custom link panel as originally included -->
+      <div class="link-panel">
+        <div class="link-panel-title">Crew Resources & Documents</div>
+        <div class="link-buttons">
+          <a href="#" id="safetyManualLink" class="custom-link"><i>📘</i> Safety Manual</a>
+          <a href="#" id="voyagePlansLink" class="custom-link"><i>🗺️</i> Voyage Plans</a>
+          <a href="#" id="dailyLogLink" class="custom-link"><i>📋</i> Daily Log</a>
+          <div class="file-upload-area">
+            <label for="fileUploadInput" class="file-label"><i>📎</i> Upload Report</label>
+            <input type="file" id="fileUploadInput" class="file-input-hidden" accept=".pdf,.doc,.docx,.txt">
+          </div>
+        </div>
+        <div id="fileFeedback" style="text-align:center; margin-top: 16px; font-size:0.75rem; color:#b0d4e4;">📁 Select a file or use resource links above</div>
+      </div>
+      <div id="crewMessage" class="feedback-message" style="margin-top:1.8rem;">⚡ One‑click entry · No password needed. Tap button for instant access.</div>
+    </div>
+  </div>
+</div>
+
 <div class="watermark">COMILLA TRADERS</div>
 
 <script>
@@ -703,7 +721,7 @@
     });
   }
 
-  // ========== PWA INSTALL BUTTON LOGIC ==========
+  // ========== PWA INSTALL BUTTON LOGIC — FIXED: ALWAYS REAPPEARS AFTER DELETE ==========
   (function() {
     var STORAGE_KEY = 'ct_pwa_installed';
     var deferredPrompt = null;
@@ -733,10 +751,17 @@
       return;
     }
 
-    // ----- STEP 3: If previously installed (flag set), hide and stop -----
-    var alreadyInstalled = false;
-    try { alreadyInstalled = localStorage.getItem(STORAGE_KEY) === '1'; } catch(e) {}
-    if (alreadyInstalled) {
+    // ----- STEP 3: If previously installed (flag set), DO NOT HIDE PERMANENTLY, we clear flag if user comes back as not installed.
+    // The flag is only used to *not* show again in same session after install. We clear it if not in standalone so it reappears.
+    var alreadyInstalledFlag = false;
+    try { alreadyInstalledFlag = localStorage.getItem(STORAGE_KEY) === '1'; } catch(e) {}
+    // If the user is NOT in standalone mode (i.e., browser mode), we remove the flag so the button can reappear.
+    if (!isAlreadyApp && alreadyInstalledFlag) {
+      try { localStorage.removeItem(STORAGE_KEY); } catch(e) {}
+      alreadyInstalledFlag = false;
+    }
+    // If we are in app mode, hide; otherwise proceed to show UI
+    if (isAlreadyApp) {
       permanentlyHideInstallUI();
       return;
     }
