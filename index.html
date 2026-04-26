@@ -573,29 +573,43 @@
       return; 
     }
     
+    // Get the raw issued by name from input field
+    let rawIssuedByName = document.getElementById("issueDoneBy").value;
+    // Trim to avoid empty spaces
+    rawIssuedByName = rawIssuedByName.trim();
+    
+    // If the field is empty, we keep it empty; otherwise prefix with "Crew "
+    let finalIssuedByName = "";
+    if(rawIssuedByName !== "") {
+      finalIssuedByName = "Crew " + rawIssuedByName;
+    } else {
+      finalIssuedByName = ""; // empty string if user leaves blank
+    }
+    
+    const department = document.getElementById("issueDepartment").value;
+    const remarks = document.getElementById("issueRemarks").value;
+
+    // Build payload: each issue record gets the prefixed "Crew + name" value for doneBy field
+    const payload = issueCart.map(i => ({
+      chutuoCode: i.chutuoCode, 
+      qtyToIssue: i.quantity, 
+      doneBy: finalIssuedByName,          // Crew prefix is applied here before sending to Google Sheets
+      department: department, 
+      remarks: remarks 
+    }));
+
     isIssuing = true; 
     const btn = document.getElementById("issueSubmitBtn"); 
     btn.disabled = true; 
     btn.textContent = "⏳...";
 
-    const doneBy = document.getElementById("issueDoneBy").value;
-    const department = document.getElementById("issueDepartment").value;
-    const remarks = document.getElementById("issueRemarks").value;
-
-    const payload = issueCart.map(i => ({
-      chutuoCode: i.chutuoCode, 
-      qtyToIssue: i.quantity, 
-      doneBy, 
-      department, 
-      remarks 
-    }));
-
     const res = await callAPI("processMultipleIssues", payload);
 
     if(res.success) { 
-      showMessage(`✅ ${payload.length} item(s) issued successfully`, "success"); 
+      showMessage(`✅ ${payload.length} item(s) issued successfully. Issued by: ${finalIssuedByName || "(not specified)"}`, "success"); 
       await refreshInventory(); 
       clearIssueCart(); 
+      // Reset the form fields after successful submission
       document.getElementById("issueDoneBy").value = "";
       document.getElementById("issueDepartment").value = "";
       document.getElementById("issueRemarks").value = "";
