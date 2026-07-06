@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import * as XLSX from "xlsx";
-import { Download, Printer, Calendar, Save, Trash2, Plus, History, Check, RefreshCw, FileText, Copy, FilePlus, MoveUp, MoveDown, Heading } from "lucide-react";
+import { Download, Printer, Calendar, Save, Trash2, Plus, History, Check, RefreshCw, FileText, Copy, FilePlus, MoveUp, MoveDown, Heading, Undo, Redo, Search, Bold, Italic, AlignLeft, AlignCenter, AlignRight, ChevronDown } from "lucide-react";
 import { db } from "../lib/firebase";
 import { collection, doc, setDoc, deleteDoc, onSnapshot, query, orderBy } from "firebase/firestore";
 
@@ -12,6 +12,7 @@ interface QuotationRow {
   price: string;
   amount: number;
   isMerged?: boolean;
+  colSpans?: number[];
 }
 
 interface SavedDocument {
@@ -82,6 +83,11 @@ export default function QuotationBuilder() {
     return initialRows;
   });
 
+  const [selectedRowIndex, setSelectedRowIndex] = useState<number>(0);
+  const [selectStart, setSelectStart] = useState<{ row: number; col: number } | null>(null);
+  const [selectEnd, setSelectEnd] = useState<{ row: number; col: number } | null>(null);
+  const [isDraggingSelect, setIsDraggingSelect] = useState<boolean>(false);
+
   const dateRef = useRef<HTMLInputElement>(null);
   const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -111,6 +117,115 @@ export default function QuotationBuilder() {
     };
   }, []);
 
+  useEffect(() => {
+    const handleGlobalMouseUp = () => {
+      setIsDraggingSelect(false);
+    };
+    window.addEventListener("mouseup", handleGlobalMouseUp);
+    return () => {
+      window.removeEventListener("mouseup", handleGlobalMouseUp);
+    };
+  }, []);
+
+  // --- CELL DRAG SELECTION HANDLERS ---
+  const handleCellMouseDown = (r: number, c: number, e: React.MouseEvent) => {
+    if (e.shiftKey && selectStart) {
+      setSelectEnd({ row: r, col: c });
+    } else {
+      setSelectStart({ row: r, col: c });
+      setSelectEnd({ row: r, col: c });
+      setIsDraggingSelect(true);
+      setSelectedRowIndex(r);
+    }
+  };
+
+  const handleCellMouseEnter = (r: number, c: number) => {
+    if (isDraggingSelect && selectStart) {
+      setSelectEnd({ row: r, col: c });
+    }
+  };
+
+  const getCellSelectionClass = (r: number, c: number) => {
+    if (!selectStart || !selectEnd) return "";
+    const minRow = Math.min(selectStart.row, selectEnd.row);
+    const maxRow = Math.max(selectStart.row, selectEnd.row);
+    const minCol = Math.min(selectStart.col, selectEnd.col);
+    const maxCol = Math.max(selectStart.col, selectEnd.col);
+
+    if (r >= minRow && r <= maxRow && c >= minCol && c <= maxCol) {
+      let classes = "bg-emerald-500/10 relative ";
+      if (r === minRow) classes += "border-t-2 border-t-emerald-600 ";
+      if (r === maxRow) classes += "border-b-2 border-b-emerald-600 ";
+      if (c === minCol) classes += "border-l-2 border-l-emerald-600 ";
+      if (c === maxCol) classes += "border-r-2 border-r-emerald-600 ";
+      return classes;
+    }
+    return "";
+  };
+
+  const getRowColSpans = (row: QuotationRow): number[] => {
+    if (row.colSpans && row.colSpans.length === 4) {
+      return row.colSpans;
+    }
+    return row.isMerged ? [4, 0, 0, 0] : [1, 1, 1, 1];
+  };
+
+  const toggleMergeSelected = () => {
+    if (!selectStart || !selectEnd) {
+      toggleMergeRow(safeSelectedRowIndex);
+      return;
+    }
+
+    const { row: startRow, col: startCol } = selectStart;
+    const { row: endRow, col: endCol } = selectEnd;
+
+    const minRow = Math.min(startRow, endRow);
+    const maxRow = Math.max(startRow, endRow);
+    const minCol = Math.min(startCol, endCol);
+    const maxCol = Math.max(startCol, endCol);
+
+    if (minRow === maxRow && minCol === maxCol) {
+      toggleMergeRow(minRow);
+      return;
+    }
+
+    const updatedRows = [...rows];
+    let alreadyMerged = true;
+    for (let r = minRow; r <= maxRow; r++) {
+      const row = updatedRows[r];
+      const spans = getRowColSpans(row);
+      if (spans[minCol] !== (maxCol - minCol + 1)) {
+        alreadyMerged = false;
+        break;
+      }
+    }
+
+    for (let r = minRow; r <= maxRow; r++) {
+      const row = updatedRows[r];
+      const spans = getRowColSpans(row);
+      const newSpans = [...spans];
+
+      if (alreadyMerged) {
+        for (let c = minCol; c <= maxCol; c++) {
+          newSpans[c] = 1;
+        }
+      } else {
+        newSpans[minCol] = maxCol - minCol + 1;
+        for (let c = minCol + 1; c <= maxCol; c++) {
+          newSpans[c] = 0;
+        }
+      }
+
+      updatedRows[r] = {
+        ...row,
+        colSpans: newSpans,
+        isMerged: newSpans[0] === 4
+      };
+    }
+
+    setRows(updatedRows);
+  };
+
   // --- IN-APP DOCUMENTS DB OPERATIONS ---
 
   // Load saved documents list from Firestore on mount in real-time
@@ -127,6 +242,8 @@ export default function QuotationBuilder() {
           unit: String(r.unit ?? ""),
           price: String(r.price ?? ""),
           amount: Number(r.amount) || 0,
+          isMerged: Boolean(r.isMerged ?? false),
+          colSpans: r.colSpans ? r.colSpans.map(Number) : undefined
         }));
         docs.push({
           id: doc.id,
@@ -193,7 +310,8 @@ export default function QuotationBuilder() {
       unit: String(r.unit ?? ""),
       price: String(r.price ?? ""),
       amount: Number(r.amount) || 0,
-      isMerged: Boolean(r.isMerged ?? false)
+      isMerged: Boolean(r.isMerged ?? false),
+      colSpans: r.colSpans ? r.colSpans.map(Number) : null
     }));
 
     const docData: SavedDocument = {
@@ -356,13 +474,14 @@ export default function QuotationBuilder() {
         vatPercent,
         transportation,
         rows: rows.map(r => ({
-          id: r.id,
           sl: r.sl,
           desc: r.desc,
           qty: r.qty,
           unit: r.unit,
           price: r.price,
-          amount: r.amount
+          amount: r.amount,
+          isMerged: Boolean(r.isMerged ?? false),
+          colSpans: r.colSpans ? r.colSpans.map(Number) : null
         })),
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
@@ -415,7 +534,8 @@ export default function QuotationBuilder() {
         unit: String(r.unit ?? ""),
         price: String(r.price ?? ""),
         amount: Number(r.amount) || 0,
-        isMerged: Boolean(r.isMerged ?? false)
+        isMerged: Boolean(r.isMerged ?? false),
+        colSpans: r.colSpans ? r.colSpans.map(Number) : null
       }));
 
       const docData: SavedDocument = {
@@ -598,6 +718,9 @@ export default function QuotationBuilder() {
         target.unit = "";
         target.price = "";
         target.amount = 0;
+        target.colSpans = [4, 0, 0, 0];
+      } else {
+        target.colSpans = [1, 1, 1, 1];
       }
       updated[index] = target;
       return updated;
@@ -1048,40 +1171,129 @@ export default function QuotationBuilder() {
     window.print();
   };
 
+  const safeSelectedRowIndex = Math.max(0, Math.min(selectedRowIndex, rows.length - 1));
+
   return (
     <div className="quotation-container relative min-h-screen flex flex-col items-center bg-[#f1f5f9] py-5 overflow-x-auto text-[#000] font-sans antialiased">
-      {/* Screen Toolbar */}
-      <div className="top-toolbar no-print print:hidden w-full max-w-[210mm] sm:w-[210mm] mb-4 flex flex-col md:flex-row justify-between items-center gap-3 px-4 sm:px-0 z-10">
-        {/* Left Side: Mode Selector & Auto-Save Control */}
-        <div className="flex flex-wrap items-center gap-3 w-full md:w-auto justify-between md:justify-start">
-          <div className="flex bg-slate-200 p-1 rounded-lg border border-slate-300 shadow-sm shrink-0">
-            <button
-              type="button"
-              onClick={() => setDocType("quotation")}
-              className={`px-3 py-1 rounded-md text-[11px] font-bold transition-all cursor-pointer ${
-                docType === "quotation"
-                  ? "bg-indigo-600 text-white shadow-sm"
-                  : "text-slate-700 hover:text-slate-900"
-              }`}
-            >
-              Quotation Mode
-            </button>
-            <button
-              type="button"
-              onClick={() => setDocType("invoice")}
-              className={`px-3 py-1 rounded-md text-[11px] font-bold transition-all cursor-pointer ${
-                docType === "invoice"
-                  ? "bg-slate-900 text-white shadow-sm"
-                  : "text-slate-700 hover:text-slate-900"
-              }`}
-            >
-              Convert to Invoice
-            </button>
+
+
+      {/* Excel / Google Sheets Style Full App Layout Toolbar */}
+      <div className="excel-editor-container no-print print:hidden w-full max-w-[210mm] sm:w-[210mm] bg-[#f8f9fa] border border-slate-300 rounded-lg shadow-md mb-4 overflow-hidden text-slate-800 z-10">
+        {/* Menu Bar: File, Edit, Insert, Format, Tools, Help */}
+        <div className="flex flex-wrap items-center gap-1 bg-[#f8f9fa] border-b border-slate-200 px-3 py-1 text-xs select-none">
+          <div className="font-semibold text-[13px] text-emerald-700 mr-4 font-mono flex items-center gap-1 shrink-0">
+            <span className="bg-emerald-700 text-white font-black text-[10px] px-1.5 py-0.5 rounded-xs leading-none shadow-xs">田</span>
+            <span className="font-extrabold tracking-tight">ComillaSheets</span>
+            {currentDocId && (
+              <span className="text-slate-400 font-sans font-normal text-[11px] ml-2 px-1.5 py-0.5 bg-slate-100 rounded border border-slate-200 flex items-center gap-1.5 shrink-0 select-none animate-in fade-in duration-200">
+                <span className="h-1.5 w-1.5 rounded-full bg-indigo-500 animate-pulse"></span>
+                <span className="font-bold text-slate-700 truncate max-w-[120px] sm:max-w-[180px]" title={savedDocs.find(d => d.id === currentDocId)?.name || "Active"}>
+                  {savedDocs.find(d => d.id === currentDocId)?.name || "Active"}
+                </span>
+              </span>
+            )}
+          </div>
+          
+          {/* File Dropdown */}
+          <div className="relative group">
+            <button className="px-2.5 py-1 hover:bg-slate-200 rounded-md cursor-pointer transition-all font-medium text-slate-700">File</button>
+            <div className="hidden group-hover:block absolute left-0 top-full bg-white border border-slate-200 shadow-xl rounded-md py-1 w-52 z-50 animate-in fade-in slide-in-from-top-1 duration-100">
+              <button onClick={startNewDoc} className="w-full text-left px-3 py-1.5 hover:bg-slate-100 flex items-center gap-2 text-[11px] text-slate-700 font-bold">
+                <FilePlus className="h-3.5 w-3.5 text-slate-400" /> New Sheet
+              </button>
+              <button onClick={saveCurrentDocToApp} className="w-full text-left px-3 py-1.5 hover:bg-slate-100 flex items-center gap-2 text-[11px] text-slate-700 font-bold">
+                <Save className="h-3.5 w-3.5 text-slate-400" /> Save to Cloud Database
+              </button>
+              {currentDocId && (
+                <>
+                  <button onClick={duplicateCurrentDoc} className="w-full text-left px-3 py-1.5 hover:bg-slate-100 flex items-center gap-2 text-[11px] text-indigo-700 font-bold border-t border-slate-100">
+                    <Copy className="h-3.5 w-3.5 text-indigo-500" /> Duplicate Sheet
+                  </button>
+                  <button onClick={() => deleteSavedDoc(currentDocId)} className="w-full text-left px-3 py-1.5 hover:bg-rose-50 text-rose-600 flex items-center gap-2 text-[11px] font-bold border-t border-slate-100">
+                    <Trash2 className="h-3.5 w-3.5 text-rose-500" /> Delete Sheet
+                  </button>
+                  <button onClick={resetSheetFields} className="w-full text-left px-3 py-1.5 hover:bg-slate-100 flex items-center gap-2 text-[11px] text-slate-500 font-bold border-t border-slate-100">
+                    <RefreshCw className="h-3.5 w-3.5 text-slate-400" /> Close Sheet
+                  </button>
+                </>
+              )}
+              <button onClick={handleSaveClick} className="w-full text-left px-3 py-1.5 hover:bg-slate-100 flex items-center gap-2 text-[11px] text-slate-700 font-bold border-t border-slate-100">
+                <Download className="h-3.5 w-3.5 text-slate-400" /> Download Excel (.xlsx)
+              </button>
+              <button onClick={handlePrint} className="w-full text-left px-3 py-1.5 hover:bg-slate-100 flex items-center gap-2 text-[11px] text-slate-700 font-bold border-t border-slate-100">
+                <Printer className="h-3.5 w-3.5 text-slate-400" /> Print / Save as PDF
+              </button>
+            </div>
           </div>
 
-          {/* Auto-Save Toggle Switch */}
-          <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-lg border border-slate-200 shadow-xs shrink-0">
-            <label className="relative inline-flex items-center cursor-pointer select-none">
+          {/* Edit Dropdown */}
+          <div className="relative group">
+            <button className="px-2.5 py-1 hover:bg-slate-200 rounded-md cursor-pointer transition-all font-medium text-slate-700">Edit</button>
+            <div className="hidden group-hover:block absolute left-0 top-full bg-white border border-slate-200 shadow-xl rounded-md py-1 w-52 z-50 animate-in fade-in slide-in-from-top-1 duration-100">
+              <button onClick={() => clearSpecificRow(safeSelectedRowIndex)} className="w-full text-left px-3 py-1.5 hover:bg-slate-100 flex items-center gap-2 text-[11px] text-slate-700 font-bold">
+                <RefreshCw className="h-3.5 w-3.5 text-slate-400" /> Clear Selected Row
+              </button>
+              <button onClick={() => deleteSpecificRow(safeSelectedRowIndex)} className="w-full text-left px-3 py-1.5 hover:bg-rose-50 text-rose-600 flex items-center gap-2 text-[11px] font-bold">
+                <Trash2 className="h-3.5 w-3.5 text-rose-400" /> Delete Selected Row
+              </button>
+            </div>
+          </div>
+
+          {/* Insert Dropdown */}
+          <div className="relative group">
+            <button className="px-2.5 py-1 hover:bg-slate-200 rounded-md cursor-pointer transition-all font-medium text-slate-700">Insert</button>
+            <div className="hidden group-hover:block absolute left-0 top-full bg-white border border-slate-200 shadow-xl rounded-md py-1 w-52 z-50 animate-in fade-in slide-in-from-top-1 duration-100">
+              <button onClick={() => insertRow(safeSelectedRowIndex, 'above')} className="w-full text-left px-3 py-1.5 hover:bg-slate-100 flex items-center gap-2 text-[11px] text-slate-700 font-bold">
+                <Plus className="h-3.5 w-3.5 text-slate-400" /> Insert Row Above
+              </button>
+              <button onClick={() => insertRow(safeSelectedRowIndex, 'below')} className="w-full text-left px-3 py-1.5 hover:bg-slate-100 flex items-center gap-2 text-[11px] text-slate-700 font-bold">
+                <Plus className="h-3.5 w-3.5 text-slate-400" /> Insert Row Below
+              </button>
+            </div>
+          </div>
+
+          {/* Format Dropdown */}
+          <div className="relative group">
+            <button className="px-2.5 py-1 hover:bg-slate-200 rounded-md cursor-pointer transition-all font-medium text-slate-700">Format</button>
+            <div className="hidden group-hover:block absolute left-0 top-full bg-white border border-slate-200 shadow-xl rounded-md py-1 w-64 z-50 animate-in fade-in slide-in-from-top-1 duration-100">
+              <button onClick={toggleMergeSelected} className="w-full text-left px-3 py-1.5 hover:bg-slate-100 flex items-center gap-2 text-[11px] text-slate-700 font-bold">
+                <Heading className="h-3.5 w-3.5 text-slate-400" /> Merge/Unmerge Selected Cells
+              </button>
+              <button onClick={() => toggleMergeRow(safeSelectedRowIndex)} className="w-full text-left px-3 py-1.5 hover:bg-slate-100 flex items-center gap-2 text-[11px] text-slate-700 font-bold">
+                <Heading className="h-3.5 w-3.5 text-slate-400" /> Toggle Full Row Merge
+              </button>
+            </div>
+          </div>
+
+          {/* Mode Dropdown */}
+          <div className="relative group">
+            <button className="px-2.5 py-1 hover:bg-slate-200 rounded-md cursor-pointer transition-all font-medium text-slate-700 flex items-center gap-1">
+              <span>Mode: <span className="text-indigo-600 font-bold capitalize">{docType}</span></span>
+              <ChevronDown className="h-3 w-3 text-slate-400" />
+            </button>
+            <div className="hidden group-hover:block absolute left-0 top-full bg-white border border-slate-200 shadow-xl rounded-md py-1 w-52 z-50 animate-in fade-in slide-in-from-top-1 duration-100">
+              <button 
+                type="button"
+                onClick={() => setDocType("quotation")} 
+                className={`w-full text-left px-3 py-1.5 hover:bg-slate-100 flex items-center justify-between text-[11px] font-bold ${docType === "quotation" ? "text-indigo-600" : "text-slate-700"}`}
+              >
+                <span>Quotation Mode</span>
+                {docType === "quotation" && <Check className="h-3.5 w-3.5 text-indigo-500" />}
+              </button>
+              <button 
+                type="button"
+                onClick={() => setDocType("invoice")} 
+                className={`w-full text-left px-3 py-1.5 hover:bg-slate-100 flex items-center justify-between text-[11px] font-bold ${docType === "invoice" ? "text-slate-900" : "text-slate-700"}`}
+              >
+                <span>Convert to Invoice</span>
+                {docType === "invoice" && <Check className="h-3.5 w-3.5 text-slate-900" />}
+              </button>
+            </div>
+          </div>
+
+          {/* Real-time Status and Auto-Save indicator */}
+          <div className="ml-auto flex items-center gap-3 pr-2">
+            <label className="flex items-center gap-1.5 cursor-pointer select-none text-[10px] font-bold text-slate-500 hover:text-slate-800 transition-colors uppercase tracking-wider">
               <input
                 type="checkbox"
                 checked={autoSaveEnabled}
@@ -1089,125 +1301,174 @@ export default function QuotationBuilder() {
                   setAutoSaveEnabled(e.target.checked);
                   localStorage.setItem("comilla_autosave_enabled", String(e.target.checked));
                 }}
-                className="sr-only peer"
+                className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 h-3 w-3 cursor-pointer"
               />
-              <div className="w-8 h-4.5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-3.5 after:w-3.5 after:transition-all peer-checked:bg-emerald-500"></div>
-              <span className="ml-2 text-[10px] font-bold text-slate-600 uppercase tracking-wider">Auto-Save</span>
+              <span>Auto-Save</span>
             </label>
-            {lastSavedTime && (
-              <span className="text-[10px] text-emerald-600 font-medium flex items-center gap-1.5 transition-all">
-                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                <span>Saved {lastSavedTime}</span>
-              </span>
-            )}
+
+            <div className="flex items-center gap-1.5 text-[10px] font-mono font-medium">
+              {saveStatus === "saving" ? (
+                <span className="text-amber-600 flex items-center gap-1">
+                  <RefreshCw className="h-3 w-3 animate-spin" />
+                  <span className="hidden md:inline">Saving...</span>
+                </span>
+              ) : lastSavedTime ? (
+                <span className="text-emerald-600 flex items-center gap-1" title={`Last saved at ${lastSavedTime}`}>
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                  <span className="hidden md:inline">Saved {lastSavedTime}</span>
+                </span>
+              ) : (
+                <span className="text-slate-400 hidden md:inline">Local Edit Mode</span>
+              )}
+            </div>
           </div>
         </div>
 
-        {/* Right Side: Action Buttons */}
-        <div className="flex flex-wrap items-center gap-2 w-full md:w-auto justify-end">
-          <button 
-            onClick={startNewDoc} 
-            className="bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 font-bold text-[11px] py-1.5 px-3 sm:px-4 rounded-md shadow-sm hover:shadow transition-all cursor-pointer flex items-center gap-1.5"
-            title="Start a fresh blank sheet"
-          >
-            <FilePlus className="h-3.5 w-3.5" />
-            <span>NEW SHEET</span>
+        {/* Real Excel Quick Action Toolbar (with beautiful grey-blue design) */}
+        <div className="flex flex-wrap items-center gap-1.5 bg-[#edf2f7] border-b border-slate-200 px-3 py-1.5 select-none overflow-x-auto no-scrollbar">
+          {/* Quick save & print actions */}
+          <button onClick={handlePrint} title="Print / PDF" className="p-1 hover:bg-slate-200 rounded transition-all cursor-pointer text-slate-700">
+            <Printer className="h-4 w-4" />
           </button>
           
-          {currentDocId && (
-            <>
-              <button 
-                onClick={duplicateCurrentDoc} 
-                className="bg-white hover:bg-indigo-50 border border-indigo-200 text-indigo-700 font-bold text-[11px] py-1.5 px-3 sm:px-4 rounded-md shadow-sm hover:shadow transition-all cursor-pointer flex items-center gap-1.5"
-                title="Save a duplicated copy of this sheet online under a new name"
-              >
-                <Copy className="h-3.5 w-3.5" />
-                <span>DUPLICATE</span>
-              </button>
-              <button 
-                onClick={() => deleteSavedDoc(currentDocId)} 
-                className="bg-white hover:bg-rose-50 border border-rose-200 text-rose-600 hover:text-rose-700 font-bold text-[11px] py-1.5 px-3 sm:px-4 rounded-md shadow-sm hover:shadow transition-all cursor-pointer flex items-center gap-1.5"
-                title="Delete this sheet from the online database"
-              >
-                <Trash2 className="h-3.5 w-3.5 text-rose-500" />
-                <span>DELETE</span>
-              </button>
-            </>
-          )}
-
           <button 
             onClick={() => saveCurrentDocToApp()} 
             disabled={saveStatus === "saving"}
-            className={`${
-              saveStatus === "saved" 
-                ? "bg-emerald-600 hover:bg-emerald-700" 
-                : saveStatus === "error" 
-                ? "bg-rose-600 hover:bg-rose-700" 
-                : "bg-indigo-600 hover:bg-indigo-700"
-            } text-white font-bold text-[11px] py-1.5 px-3 sm:px-4 rounded-md shadow-sm hover:shadow transition-all cursor-pointer flex items-center gap-1.5 disabled:opacity-85`}
             title="Save this sheet directly to the online Cloud database"
+            className={`p-1 px-2 rounded cursor-pointer transition-all border flex items-center gap-1 text-[10px] font-extrabold ${
+              saveStatus === "saved" 
+                ? "bg-emerald-50 hover:bg-emerald-100 border-emerald-200 text-emerald-800" 
+                : saveStatus === "error"
+                ? "bg-rose-50 hover:bg-rose-100 border-rose-200 text-rose-800"
+                : "bg-white hover:bg-slate-50 border-slate-200 text-slate-700 shadow-2xs"
+            }`}
           >
             {saveStatus === "saving" ? (
-              <>
-                <RefreshCw className="h-3.5 w-3.5 animate-spin" />
-                <span>SAVING...</span>
-              </>
+              <RefreshCw className="h-3 w-3 text-amber-600 animate-spin" />
             ) : saveStatus === "saved" ? (
-              <>
-                <Check className="h-3.5 w-3.5" />
-                <span>SAVED ONLINE!</span>
-              </>
-            ) : saveStatus === "error" ? (
-              <>
-                <Trash2 className="h-3.5 w-3.5" />
-                <span>SAVE FAILED</span>
-              </>
+              <Check className="h-3 w-3 text-emerald-600" />
             ) : (
-              <>
-                <Save className="h-3.5 w-3.5" />
-                <span>SAVE ONLINE</span>
-              </>
+              <Save className="h-3 w-3 text-slate-600" />
             )}
+            <span className="uppercase">
+              {saveStatus === "saving" ? "Saving..." : saveStatus === "saved" ? "Saved!" : "Save Cloud"}
+            </span>
           </button>
+
           <button 
             onClick={handleSaveClick} 
-            className="bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-[11px] py-1.5 px-3 sm:px-4 rounded-md shadow-sm hover:shadow transition-all cursor-pointer flex items-center gap-1.5"
+            title="Download Excel Spreadsheet (.xlsx)" 
+            className="p-1 px-2 hover:bg-slate-200 bg-white border border-slate-200 text-slate-700 rounded transition-all cursor-pointer flex items-center gap-1 text-[10px] font-extrabold shadow-2xs"
           >
-            <Download className="h-3.5 w-3.5" />
-            <span>SAVE EXCEL</span>
+            <Download className="h-3.5 w-3.5 text-slate-600" />
+            <span>EXCEL</span>
           </button>
-          <button 
-            onClick={handlePrint} 
-            className="bg-rose-600 hover:bg-rose-700 text-white font-bold text-[11px] py-1.5 px-3 sm:px-4 rounded-md shadow-sm hover:shadow transition-all cursor-pointer flex items-center gap-1.5"
-          >
-            <Printer className="h-3.5 w-3.5" />
-            <span>PRINT / PDF</span>
-          </button>
-        </div>
-      </div>
 
-      {/* Editing State Banner */}
-      {currentDocId && (
-        <div className="no-print print:hidden w-full max-w-[210mm] sm:w-[210mm] mb-3 px-4 sm:px-0 z-10 animate-in fade-in slide-in-from-top-2 duration-250">
-          <div className="bg-indigo-50 border border-indigo-100 rounded-lg p-3 sm:p-4 flex items-center justify-between text-xs text-indigo-950 shadow-sm">
-            <div className="flex items-center gap-2.5 min-w-0">
-              <span className="bg-indigo-600 text-white font-black text-[9px] px-2 py-0.5 rounded-sm uppercase tracking-wider shrink-0 shadow-xs">
-                EDITING MODE
-              </span>
-              <span className="font-bold text-slate-800 truncate" title={savedDocs.find(d => d.id === currentDocId)?.name || "Active Sheet"}>
-                {savedDocs.find(d => d.id === currentDocId)?.name || "Active Sheet"}
-              </span>
-            </div>
-            <button
-              type="button"
-              onClick={resetSheetFields}
-              className="text-[11px] font-bold text-indigo-600 hover:text-indigo-800 hover:bg-indigo-100/50 px-2.5 py-1.5 rounded transition-all cursor-pointer uppercase tracking-wider shrink-0"
+          <div className="h-4 w-[1px] bg-slate-300 mx-0.5"></div>
+
+          {/* Merge Cells Button - acts exactly like Sheets Merge cells button! */}
+          <button 
+            onClick={toggleMergeSelected} 
+            title="Merge selected adjacent cells horizontally (or toggle heading row merge on click)"
+            className="p-1 px-2.5 rounded cursor-pointer transition-all border flex items-center gap-1 text-[10px] font-extrabold bg-white hover:bg-slate-50 border-slate-200 text-slate-700 shadow-2xs"
+          >
+            <Heading className="h-3.5 w-3.5 text-slate-600" />
+            <span>MERGE CELLS</span>
+          </button>
+
+          <div className="h-4 w-[1px] bg-slate-300 mx-0.5"></div>
+
+          {/* Row Manipulation Tools */}
+          <div className="flex items-center gap-1 bg-white p-0.5 rounded border border-slate-200 shadow-2xs">
+            <button 
+              onClick={() => insertRow(safeSelectedRowIndex, 'above')} 
+              title="Insert Row Above Selected" 
+              className="p-1 px-2 hover:bg-indigo-50 text-indigo-700 rounded transition-all cursor-pointer flex items-center gap-1 text-[10px] font-extrabold"
             >
-              Start New / Close
+              <Plus className="h-3 w-3" />
+              <span>ROW ABOVE</span>
+            </button>
+            <div className="h-3 w-[1px] bg-slate-200"></div>
+            <button 
+              onClick={() => insertRow(safeSelectedRowIndex, 'below')} 
+              title="Insert Row Below Selected" 
+              className="p-1 px-2 hover:bg-indigo-50 text-indigo-700 rounded transition-all cursor-pointer flex items-center gap-1 text-[10px] font-extrabold"
+            >
+              <Plus className="h-3 w-3" />
+              <span>ROW BELOW</span>
             </button>
           </div>
+
+          <div className="h-4 w-[1px] bg-slate-300 mx-0.5"></div>
+
+          <div className="flex items-center gap-1 bg-white p-0.5 rounded border border-slate-200 shadow-2xs">
+            <button 
+              onClick={() => moveRow(safeSelectedRowIndex, 'up')} 
+              disabled={safeSelectedRowIndex === 0}
+              title="Move Selected Row Up" 
+              className="p-1 px-2 hover:bg-slate-50 disabled:opacity-30 disabled:pointer-events-none text-slate-700 rounded transition-all cursor-pointer flex items-center gap-1 text-[10px] font-extrabold"
+            >
+              <MoveUp className="h-3 w-3 text-slate-500" />
+              <span>UP</span>
+            </button>
+            <div className="h-3 w-[1px] bg-slate-200"></div>
+            <button 
+              onClick={() => moveRow(safeSelectedRowIndex, 'down')} 
+              disabled={safeSelectedRowIndex === rows.length - 1}
+              title="Move Selected Row Down" 
+              className="p-1 px-2 hover:bg-slate-50 disabled:opacity-30 disabled:pointer-events-none text-slate-700 rounded transition-all cursor-pointer flex items-center gap-1 text-[10px] font-extrabold"
+            >
+              <MoveDown className="h-3 w-3 text-slate-500" />
+              <span>DOWN</span>
+            </button>
+          </div>
+
+          <div className="h-4 w-[1px] bg-slate-300 mx-0.5"></div>
+
+          <button 
+            onClick={() => clearSpecificRow(safeSelectedRowIndex)} 
+            title="Clear Row Values" 
+            className="p-1.5 hover:bg-slate-200 bg-white border border-slate-200 text-slate-700 rounded-md transition-all cursor-pointer flex items-center gap-1 text-[10px] font-extrabold shadow-2xs"
+          >
+            <RefreshCw className="h-3 w-3 text-slate-500" />
+            <span>CLEAR ROW</span>
+          </button>
+
+          <button 
+            onClick={() => deleteSpecificRow(safeSelectedRowIndex)} 
+            title="Delete Selected Row" 
+            className="p-1.5 hover:bg-rose-50 border border-rose-200 text-rose-600 rounded-md transition-all cursor-pointer flex items-center gap-1 text-[10px] font-extrabold shadow-2xs"
+          >
+            <Trash2 className="h-3 w-3 text-rose-500" />
+            <span>DELETE ROW</span>
+          </button>
         </div>
-      )}
+
+        {/* Real Formula / fx Bar (Input representing description of focused cell) */}
+        <div className="flex items-center bg-white border-b border-slate-200 px-3 py-1 font-mono text-[11px] h-9">
+          {/* Selected Row Box */}
+          <div className="bg-slate-100 text-slate-800 font-extrabold text-center px-3 py-0.5 rounded border border-slate-300 min-w-[75px] select-none uppercase shadow-3xs text-[10px]">
+            SL {safeSelectedRowIndex + 1}
+          </div>
+          
+          {/* fx Icon */}
+          <div className="font-extrabold font-serif italic text-slate-400 text-sm px-3 select-none flex items-center">
+            fx
+          </div>
+
+          {/* Border line */}
+          <div className="h-5 w-[1px] bg-slate-200 mr-2"></div>
+
+          {/* Formula input: linked directly to description of active row! */}
+          <input 
+            type="text"
+            value={rows[safeSelectedRowIndex]?.desc || ""}
+            onChange={(e) => handleRowChange(safeSelectedRowIndex, "desc", e.target.value)}
+            placeholder="Select any cell below to edit description or edit here..."
+            className="flex-grow bg-transparent border-none outline-none text-slate-800 font-medium py-1 placeholder:text-slate-400 placeholder:italic placeholder:font-sans text-[11.5px]"
+          />
+        </div>
+      </div>
 
       {/* Standard A4 Printable Sheet */}
       <div className="sheet relative w-full max-w-[210mm] sm:w-[210mm] print:w-[210mm] min-h-[297mm] bg-white p-4 sm:p-[12mm] print:p-[12mm] shadow-lg box-border z-10 mx-auto">
@@ -1441,45 +1702,41 @@ export default function QuotationBuilder() {
               <th className="w-[22%] border border-black py-1 text-center font-bold">Unit</th>
               <th className="w-[10%] border border-black py-1 text-center font-bold">Price</th>
               <th className="w-[12%] border border-black py-1 text-center font-bold">Amount</th>
-              <th className="w-[90px] border border-black py-1 text-center font-bold no-print print:hidden bg-slate-100 text-slate-700">Actions</th>
             </tr>
           </thead>
           <tbody>
-            {rows.map((row, idx) => (
-              <tr key={row.sl} className={`group hover:bg-slate-50/50 ${row.isMerged ? "bg-amber-50/10 font-bold" : ""}`}>
-                <td className="border border-black text-center font-mono text-[8.5pt] align-top py-1">
-                  {idx + 1}
-                </td>
-                
-                {row.isMerged ? (
-                  /* Merged Description across Description, Qty, Unit, Price columns */
-                  <td colSpan={4} className="border border-black text-left px-1.5 text-[8.5pt] align-top py-1 bg-amber-50/10">
-                    <textarea
-                      value={row.desc}
-                      onChange={(e) => {
-                        handleRowChange(idx, "desc", e.target.value);
-                        e.target.style.height = "auto";
-                        e.target.style.height = `${e.target.scrollHeight}px`;
-                      }}
-                      onKeyDown={(e) => handleKeyDown(e, idx, 0)}
-                      onPaste={(e) => handlePaste(e, idx, 0)}
-                      data-row={idx}
-                      data-col={0}
-                      rows={1}
-                      style={{ height: "auto", resize: "none" }}
-                      placeholder="Merged Row (Section Title / Heading / Separator - Excel style)"
-                      className="w-full text-left border-none outline-none bg-transparent px-0 text-slate-900 font-extrabold text-[8.5pt] leading-tight block overflow-hidden py-0.5 whitespace-pre-wrap break-all placeholder:text-slate-400 placeholder:italic no-print print:hidden"
-                    />
-                    <div className="hidden print:block whitespace-pre-wrap break-words text-slate-900 font-extrabold leading-tight py-0.5 text-[8.5pt]">
-                      {row.desc || " "}
-                    </div>
+            {rows.map((row, idx) => {
+              const spans = getRowColSpans(row);
+              return (
+                <tr 
+                  key={row.sl} 
+                  className={`group hover:bg-slate-50/50 transition-colors ${
+                    row.isMerged ? "bg-amber-50/10 font-bold" : ""
+                  } ${
+                    idx === safeSelectedRowIndex 
+                      ? "bg-emerald-50/40 ring-1 ring-emerald-600/30 ring-inset" 
+                      : ""
+                  }`}
+                  onClick={() => setSelectedRowIndex(idx)}
+                >
+                  <td className={`border border-black text-center font-mono text-[8.5pt] align-top py-1 transition-all ${
+                    idx === safeSelectedRowIndex 
+                      ? "bg-emerald-600 text-white font-extrabold shadow-sm" 
+                      : "bg-slate-50/30 text-slate-800"
+                  }`}>
+                    {idx + 1}
                   </td>
-                ) : (
-                  /* Normal Columns */
-                  <>
-                    <td className="border border-black text-left px-1.5 text-[8.5pt] align-top py-1 break-all whitespace-normal">
+                  
+                  {spans[0] > 0 && (
+                    <td 
+                      colSpan={spans[0]}
+                      onMouseDown={(e) => handleCellMouseDown(idx, 0, e)}
+                      onMouseEnter={() => handleCellMouseEnter(idx, 0)}
+                      className={`border border-black text-left px-1.5 text-[8.5pt] align-top py-1 transition-all break-all whitespace-normal ${getCellSelectionClass(idx, 0)}`}
+                    >
                       <textarea
                         value={row.desc}
+                        onFocus={() => setSelectedRowIndex(idx)}
                         onChange={(e) => {
                           handleRowChange(idx, "desc", e.target.value);
                           e.target.style.height = "auto";
@@ -1503,15 +1760,25 @@ export default function QuotationBuilder() {
                         data-col={0}
                         rows={1}
                         style={{ height: "auto", resize: "none" }}
-                        className="w-full text-left border-none outline-none bg-transparent px-0 text-slate-800 text-[8.5pt] leading-tight block overflow-hidden py-0.5 whitespace-pre-wrap break-all no-print print:hidden"
+                        placeholder={row.isMerged ? "Merged Row (Section Title / Heading / Separator - Excel style)" : ""}
+                        className={`w-full text-left border-none outline-none bg-transparent px-0 text-slate-800 text-[8.5pt] leading-tight block overflow-hidden py-0.5 whitespace-pre-wrap break-all no-print print:hidden ${row.isMerged ? "font-extrabold" : ""}`}
                       />
-                      <div className="hidden print:block whitespace-pre-wrap break-words text-slate-900 leading-tight py-0.5 text-[8.5pt]">
+                      <div className={`hidden print:block whitespace-pre-wrap break-words text-slate-900 leading-tight py-0.5 text-[8.5pt] ${row.isMerged ? "font-extrabold" : ""}`}>
                         {row.desc || " "}
                       </div>
                     </td>
-                    <td className="border border-black text-center font-mono text-[9pt] align-top py-1">
+                  )}
+
+                  {spans[1] > 0 && (
+                    <td 
+                      colSpan={spans[1]}
+                      onMouseDown={(e) => handleCellMouseDown(idx, 1, e)}
+                      onMouseEnter={() => handleCellMouseEnter(idx, 1)}
+                      className={`border border-black text-center font-mono text-[9pt] align-top py-1 transition-all ${getCellSelectionClass(idx, 1)}`}
+                    >
                       <textarea
                         value={row.qty}
+                        onFocus={() => setSelectedRowIndex(idx)}
                         onChange={(e) => {
                           handleRowChange(idx, "qty", e.target.value);
                           e.target.style.height = "auto";
@@ -1531,9 +1798,18 @@ export default function QuotationBuilder() {
                         {row.qty || " "}
                       </div>
                     </td>
-                    <td className="border border-black text-center text-[9pt] align-top py-1">
+                  )}
+
+                  {spans[2] > 0 && (
+                    <td 
+                      colSpan={spans[2]}
+                      onMouseDown={(e) => handleCellMouseDown(idx, 2, e)}
+                      onMouseEnter={() => handleCellMouseEnter(idx, 2)}
+                      className={`border border-black text-center text-[9pt] align-top py-1 transition-all ${getCellSelectionClass(idx, 2)}`}
+                    >
                       <textarea
                         value={row.unit}
+                        onFocus={() => setSelectedRowIndex(idx)}
                         onChange={(e) => {
                           handleRowChange(idx, "unit", e.target.value);
                           e.target.style.height = "auto";
@@ -1553,9 +1829,18 @@ export default function QuotationBuilder() {
                         {row.unit || " "}
                       </div>
                     </td>
-                    <td className="border border-black text-center font-mono text-[9pt] align-top py-1">
+                  )}
+
+                  {spans[3] > 0 && (
+                    <td 
+                      colSpan={spans[3]}
+                      onMouseDown={(e) => handleCellMouseDown(idx, 3, e)}
+                      onMouseEnter={() => handleCellMouseEnter(idx, 3)}
+                      className={`border border-black text-center font-mono text-[9pt] align-top py-1 transition-all ${getCellSelectionClass(idx, 3)}`}
+                    >
                       <textarea
                         value={row.price}
+                        onFocus={() => setSelectedRowIndex(idx)}
                         onChange={(e) => {
                           handleRowChange(idx, "price", e.target.value);
                           e.target.style.height = "auto";
@@ -1575,78 +1860,24 @@ export default function QuotationBuilder() {
                         {row.price || " "}
                       </div>
                     </td>
-                  </>
-                )}
-
-                <td className="border border-black text-right pr-2 font-mono text-[9pt] font-semibold text-slate-800 align-top py-1">
-                  {row.isMerged ? (
-                    <span className="text-slate-400 italic text-[7.5pt]">-</span>
-                  ) : (
-                    <div className={`whitespace-normal break-all leading-tight ${
-                      row.amount > 0 && row.amount.toLocaleString("en-US", { minimumFractionDigits: 2 }).length > 12
-                        ? "text-[7.5pt]"
-                        : "text-[9pt]"
-                    }`}>
-                      {row.amount > 0 ? row.amount.toLocaleString("en-US", { minimumFractionDigits: 2 }) : "0.00"}
-                    </div>
                   )}
-                </td>
 
-                {/* Actions column (screen-only) */}
-                <td className="border border-black py-1 no-print print:hidden bg-slate-50/50 align-middle">
-                  <div className="flex items-center justify-center gap-1.5">
-                    <button
-                      type="button"
-                      onClick={() => toggleMergeRow(idx)}
-                      title={row.isMerged ? "Split / Unmerge Columns" : "Merge Columns (Excel style header row)"}
-                      className={`p-1 rounded cursor-pointer transition-all border ${
-                        row.isMerged 
-                          ? "bg-amber-100 border-amber-300 hover:bg-amber-200 text-amber-800" 
-                          : "bg-white border-slate-200 hover:bg-slate-100 text-slate-600"
-                      }`}
-                    >
-                      <Heading className="h-3 w-3" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => insertRow(idx, 'below')}
-                      title="Insert row below"
-                      className="p-1 rounded bg-white border border-slate-200 hover:bg-indigo-50 hover:border-indigo-200 text-indigo-600 cursor-pointer transition-all"
-                    >
-                      <Plus className="h-3 w-3" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => deleteSpecificRow(idx)}
-                      title="Delete row"
-                      className="p-1 rounded bg-white border border-slate-200 hover:bg-rose-50 hover:border-rose-200 text-rose-600 cursor-pointer transition-all"
-                    >
-                      <Trash2 className="h-3 w-3" />
-                    </button>
-                    <div className="flex flex-col gap-0.5 opacity-40 hover:opacity-100 transition-opacity">
-                      <button
-                        type="button"
-                        onClick={() => moveRow(idx, 'up')}
-                        disabled={idx === 0}
-                        title="Move row up"
-                        className="p-0.5 rounded bg-white border border-slate-100 hover:bg-slate-100 disabled:opacity-30 disabled:pointer-events-none text-slate-700 cursor-pointer transition-all"
-                      >
-                        <MoveUp className="h-2.5 w-2.5" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => moveRow(idx, 'down')}
-                        disabled={idx === rows.length - 1}
-                        title="Move row down"
-                        className="p-0.5 rounded bg-white border border-slate-100 hover:bg-slate-100 disabled:opacity-30 disabled:pointer-events-none text-slate-700 cursor-pointer transition-all"
-                      >
-                        <MoveDown className="h-2.5 w-2.5" />
-                      </button>
-                    </div>
-                  </div>
-                </td>
-              </tr>
-            ))}
+                  <td className="border border-black text-right pr-2 font-mono text-[9pt] font-semibold text-slate-800 align-top py-1">
+                    {row.isMerged ? (
+                      <span className="text-slate-400 italic text-[7.5pt]">-</span>
+                    ) : (
+                      <div className={`whitespace-normal break-all leading-tight ${
+                        row.amount > 0 && row.amount.toLocaleString("en-US", { minimumFractionDigits: 2 }).length > 12
+                          ? "text-[7.5pt]"
+                          : "text-[9pt]"
+                      }`}>
+                        {row.amount > 0 ? row.amount.toLocaleString("en-US", { minimumFractionDigits: 2 }) : "0.00"}
+                      </div>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
         </div>
