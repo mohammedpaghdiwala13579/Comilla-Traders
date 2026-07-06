@@ -664,7 +664,7 @@ export default function QuotationBuilder() {
     }
   };
 
-  // Excel style pasting: parses tabs as columns and newlines as rows
+  // Excel style pasting: parses tabs as columns and newlines as rows, respecting double quotes
   const handlePaste = (
     e: React.ClipboardEvent<HTMLTextAreaElement | HTMLInputElement>,
     startRowIndex: number,
@@ -673,24 +673,113 @@ export default function QuotationBuilder() {
     const clipboardData = e.clipboardData.getData("text");
     if (!clipboardData) return;
 
-    // Excel copies data as tab-separated values (TSV) for columns and newline for rows
-    if (clipboardData.includes("\t") || clipboardData.includes("\n")) {
-      e.preventDefault();
-      
-      const rowsData = clipboardData
-        .split(/\r?\n/)
-        .map(row => row.split("\t"));
+    // TSV state-machine parser to handle double quotes, internal cell newlines, and tabs
+    const parseTSV = (text: string): string[][] => {
+      const result: string[][] = [];
+      let row: string[] = [];
+      let cell = "";
+      let inQuotes = false;
 
-      // If the last row is empty (common when copying from Excel), remove it
-      if (rowsData.length > 1 && rowsData[rowsData.length - 1].length === 1 && rowsData[rowsData.length - 1][0] === "") {
-        rowsData.pop();
+      for (let i = 0; i < text.length; i++) {
+        const char = text[i];
+        const nextChar = text[i + 1];
+
+        if (inQuotes) {
+          if (char === '"') {
+            if (nextChar === '"') {
+              // Escaped double quote: "" -> "
+              cell += '"';
+              i++; // Skip next quote
+            } else {
+              // End of quoted cell
+              inQuotes = false;
+            }
+          } else {
+            cell += char;
+          }
+        } else {
+          if (char === '"') {
+            // Start of quoted cell
+            inQuotes = true;
+          } else if (char === '\t') {
+            // End of column
+            row.push(cell);
+            cell = "";
+          } else if (char === '\r') {
+            // Carriage return: handle trailing \n
+            if (nextChar === '\n') {
+              row.push(cell);
+              result.push(row);
+              row = [];
+              cell = "";
+              i++; // Skip \n
+            } else {
+              row.push(cell);
+              result.push(row);
+              row = [];
+              cell = "";
+            }
+          } else if (char === '\n') {
+            // Newline
+            row.push(cell);
+            result.push(row);
+            row = [];
+            cell = "";
+          } else {
+            cell += char;
+          }
+        }
       }
 
+      if (cell !== "" || row.length > 0) {
+        row.push(cell);
+        result.push(row);
+      }
+
+      // Clean up empty trailing row which is common when copying from Excel
+      if (
+        result.length > 1 &&
+        result[result.length - 1].length === 1 &&
+        result[result.length - 1][0] === ""
+      ) {
+        result.pop();
+      }
+
+      return result;
+    };
+
+    // If clipboard has tabs or newlines, we parse it as Excel TSV
+    if (clipboardData.includes("\t") || clipboardData.includes("\n") || clipboardData.includes("\r")) {
+      e.preventDefault();
+      const parsedGrid = parseTSV(clipboardData);
+
+      if (parsedGrid.length === 0) return;
+
+      // Case 1: Single cell paste (1 row, 1 col)
+      if (parsedGrid.length === 1 && parsedGrid[0].length === 1) {
+        const parsedVal = parsedGrid[0][0];
+        const textarea = e.currentTarget as HTMLTextAreaElement;
+        const start = textarea.selectionStart ?? 0;
+        const end = textarea.selectionEnd ?? 0;
+        const currentValue = textarea.value;
+        const newValue = currentValue.substring(0, start) + parsedVal + currentValue.substring(end);
+        
+        const fieldMap = ["desc", "qty", "unit", "price"] as const;
+        const field = fieldMap[startColIndex];
+        handleRowChange(startRowIndex, field, newValue);
+        
+        setTimeout(() => {
+          textarea.focus();
+          textarea.selectionStart = textarea.selectionEnd = start + parsedVal.length;
+        }, 0);
+        return;
+      }
+
+      // Case 2: Multi-cell paste
       setRows((prevRows) => {
         const updated = [...prevRows];
         
-        // Loop through each copied row
-        rowsData.forEach((cols, rOffset) => {
+        parsedGrid.forEach((cols, rOffset) => {
           const rIndex = startRowIndex + rOffset;
           
           // If we run out of rows, append a new row
@@ -710,18 +799,17 @@ export default function QuotationBuilder() {
           // Loop through each copied column
           cols.forEach((cellValue, cOffset) => {
             const cIndex = startColIndex + cOffset;
-            const cleanedVal = cellValue.trim().replace(/^"([\s\S]*)"$/, "$1");
             
             // Map column index to field:
             // 0: desc, 1: qty, 2: unit, 3: price
             if (cIndex === 0) {
-              targetRow.desc = cleanedVal;
+              targetRow.desc = cellValue;
             } else if (cIndex === 1) {
-              targetRow.qty = cleanedVal;
+              targetRow.qty = cellValue;
             } else if (cIndex === 2) {
-              targetRow.unit = cleanedVal;
+              targetRow.unit = cellValue;
             } else if (cIndex === 3) {
-              targetRow.price = cleanedVal;
+              targetRow.price = cellValue;
             }
           });
 
