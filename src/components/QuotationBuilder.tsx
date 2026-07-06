@@ -1,8 +1,11 @@
-import React, { useState, useEffect, useRef } from "react";
+```html
+<FILE file_path="/home/workdir/attachments/1.txt" size="124290 bytes">import React, { useState, useEffect, useRef } from "react";
 import * as XLSX from "xlsx";
 import { Download, Printer, Calendar, Save, Trash2, Plus, History, Check, RefreshCw, FileText, Copy, FilePlus, MoveUp, MoveDown, Heading, Undo, Redo, Search, Bold, Italic, AlignLeft, AlignCenter, AlignRight, ChevronDown } from "lucide-react";
 import { db } from "../lib/firebase";
 import { collection, doc, setDoc, deleteDoc, onSnapshot, query, orderBy } from "firebase/firestore";
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 
 interface QuotationRow {
   sl: number;
@@ -63,7 +66,7 @@ export default function QuotationBuilder() {
   const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
   const [saveFilename, setSaveFilename] = useState("");
   const [saveMethod, setSaveMethod] = useState<"default" | "custom">("default");
-  
+
   // In-app storage & Auto-Save states
   const [savedDocs, setSavedDocs] = useState<SavedDocument[]>([]);
   const [currentDocId, setCurrentDocId] = useState<string | null>(null);
@@ -76,7 +79,7 @@ export default function QuotationBuilder() {
   });
   const [lastSavedTime, setLastSavedTime] = useState<string | null>(null);
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
-  
+
   // Initialize with 20 rows by default
   const [rows, setRows] = useState<QuotationRow[]>(() => {
     const initialRows: QuotationRow[] = [];
@@ -92,11 +95,13 @@ export default function QuotationBuilder() {
     }
     return initialRows;
   });
+
   // Rectangular cell-merge regions, independent of row/column content.
   const [mergedRegions, setMergedRegions] = useState<MergedRegion[]>([]);
 
   const [selectedRowIndex, setSelectedRowIndex] = useState<number>(0);
   const [selectedCell, setSelectedCell] = useState<{ rowIndex: number; colIndex: number } | null>({ rowIndex: 0, colIndex: 0 });
+
   const [isSelecting, setIsSelecting] = useState<boolean>(false);
   const [selectionStart, setSelectionStart] = useState<{ rowIndex: number; colIndex: number } | null>({ rowIndex: 0, colIndex: 0 });
   const [selectionEnd, setSelectionEnd] = useState<{ rowIndex: number; colIndex: number } | null>({ rowIndex: 0, colIndex: 0 });
@@ -111,7 +116,8 @@ export default function QuotationBuilder() {
 
   const dateRef = useRef<HTMLInputElement>(null);
   const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
-  
+  const sheetRef = useRef<HTMLDivElement>(null);
+
   const triggerDatePicker = () => {
     if (dateRef.current) {
       try {
@@ -122,6 +128,7 @@ export default function QuotationBuilder() {
       }
     }
   };
+
   const handleDatePickerChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const dateStr = e.target.value;
     if (!dateStr) return;
@@ -186,6 +193,7 @@ export default function QuotationBuilder() {
     }, (error) => {
       console.error("Error listening to documents from Firestore:", error);
     });
+
     return () => unsubscribe();
   }, []);
 
@@ -220,6 +228,7 @@ export default function QuotationBuilder() {
     const nameToUse = customName || savedDocs.find(d => d.id === currentDocId)?.name || defaultName;
 
     const docId = currentDocId || generateUUID();
+
     const sanitizedRows = rows.map(r => ({
       sl: Number(r.sl) || 0,
       desc: String(r.desc ?? ""),
@@ -228,6 +237,7 @@ export default function QuotationBuilder() {
       price: String(r.price ?? ""),
       amount: Number(r.amount) || 0
     }));
+
     const sanitizedMergedRegions = mergedRegions.map(m => ({
       id: String(m.id),
       startRow: Number(m.startRow) || 0,
@@ -235,6 +245,7 @@ export default function QuotationBuilder() {
       startCol: Number(m.startCol) ?? 0,
       endCol: Number(m.endCol) ?? 0
     }));
+
     const docData: SavedDocument = {
       id: docId,
       name: String(nameToUse || "Unnamed Document"),
@@ -253,6 +264,7 @@ export default function QuotationBuilder() {
       rows: sanitizedRows,
       mergedRegions: sanitizedMergedRegions
     };
+
     setSaveStatus("saving");
     try {
       await setDoc(doc(db, "documents", docId), docData);
@@ -325,6 +337,7 @@ export default function QuotationBuilder() {
     setMergedRegions((doc.mergedRegions || []).map(m => ({ ...m })));
     setCurrentDocId(doc.id);
     setLastSavedTime(null);
+
     // Smooth scroll to top so the user can edit the page immediately
     if (typeof window !== "undefined") {
       window.scrollTo({ top: 0, behavior: "smooth" });
@@ -407,6 +420,7 @@ export default function QuotationBuilder() {
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
       };
+
       await setDoc(doc(db, "documents", newId), docPayload);
       setCurrentDocId(newId);
       setSaveStatus("saved");
@@ -446,6 +460,7 @@ export default function QuotationBuilder() {
       }
       const defaultName = `${docType === "quotation" ? "Quotation" : "Invoice"}${docIdentifier} - ${messers || "Unnamed Client"} (${dateVal})`;
       const nameToUse = savedDocs.find(d => d.id === currentDocId)?.name || defaultName;
+
       const sanitizedRows = rows.map(r => ({
         sl: Number(r.sl) || 0,
         desc: String(r.desc ?? ""),
@@ -454,6 +469,7 @@ export default function QuotationBuilder() {
         price: String(r.price ?? ""),
         amount: Number(r.amount) || 0
       }));
+
       const sanitizedMergedRegions = mergedRegions.map(m => ({
         id: String(m.id),
         startRow: Number(m.startRow) || 0,
@@ -461,6 +477,7 @@ export default function QuotationBuilder() {
         startCol: Number(m.startCol) ?? 0,
         endCol: Number(m.endCol) ?? 0
       }));
+
       const docData: SavedDocument = {
         id: docId,
         name: String(nameToUse || "Unnamed Document"),
@@ -479,6 +496,7 @@ export default function QuotationBuilder() {
         rows: sanitizedRows,
         mergedRegions: sanitizedMergedRegions
       };
+
       setSaveStatus("saving");
       try {
         await setDoc(doc(db, "documents", docId), docData);
@@ -500,6 +518,7 @@ export default function QuotationBuilder() {
         setTimeout(() => setSaveStatus("idle"), 3000);
       }
     }, 1500);
+
     autoSaveTimerRef.current = timer;
 
     return () => {
@@ -604,12 +623,12 @@ export default function QuotationBuilder() {
         amount: 0,
       };
       updated.splice(insertAt, 0, newRow);
-      
       return updated.map((r, i) => ({
         ...r,
         sl: i + 1
       }));
     });
+
     // Shift any merged region that starts at or after the insertion point down by one row
     // so existing merges keep pointing at the same logical rows.
     setMergedRegions((prevRegions) =>
@@ -643,6 +662,7 @@ export default function QuotationBuilder() {
         sl: i + 1
       }));
     });
+
     // Shift/shrink merged regions to account for the removed row; drop any region
     // that no longer spans at least one row after the deletion.
     setMergedRegions((prevRegions) =>
@@ -720,8 +740,10 @@ export default function QuotationBuilder() {
     const endRow = Math.max(selectionStart.rowIndex, selectionEnd.rowIndex);
     const startCol = Math.min(selectionStart.colIndex, selectionEnd.colIndex);
     const endCol = Math.max(selectionStart.colIndex, selectionEnd.colIndex);
+
     // A single cell isn't a "merge" — nothing to combine.
     if (startRow === endRow && startCol === endCol) return;
+
     const candidateRegion = { startRow, endRow, startCol, endCol };
 
     // Refuse overlapping merges (same rule Excel follows): resolve the existing merge first.
@@ -789,8 +811,9 @@ export default function QuotationBuilder() {
     setSelectedRowIndex(startRow);
   };
 
-  // Remove whichever merged region covers (rowIndex, colIndex), restoring its cells to normal individually-editable state.
-  // Content stays wherever it currently sits (in the anchor cell) rather than being redistributed, since there's no reliable way to guess
+  // Remove whichever merged region covers (rowIndex, colIndex), restoring its cells to
+  // normal individually-editable state. Content stays wherever it currently sits (in the
+  // anchor cell) rather than being redistributed, since there's no reliable way to guess
   // which of several original cells a combined value belongs back to.
   const unmergeRegionAt = (rowIndex: number, colIndex: number) => {
     const region = getMergeRegionAt(rowIndex, colIndex);
@@ -857,6 +880,7 @@ export default function QuotationBuilder() {
     const maxRow = Math.max(selectionStart.rowIndex, selectionEnd.rowIndex);
     const minCol = Math.min(selectionStart.colIndex, selectionEnd.colIndex);
     const maxCol = Math.max(selectionStart.colIndex, selectionEnd.colIndex);
+
     return rowIndex >= minRow && rowIndex <= maxRow && colIndex >= minCol && colIndex <= maxCol;
   };
 
@@ -868,12 +892,15 @@ export default function QuotationBuilder() {
 
   const handleCellMouseDown = (e: React.MouseEvent, rowIndex: number, colIndex: number) => {
     if (e.button !== 0) return; // Only left click
+
     const isActive = selectedCell?.rowIndex === rowIndex && selectedCell?.colIndex === colIndex;
+
     setIsSelecting(true);
     setSelectionStart({ rowIndex, colIndex });
     setSelectionEnd({ rowIndex, colIndex });
     setSelectedCell({ rowIndex, colIndex });
     setSelectedRowIndex(rowIndex);
+
     if (!isActive) {
       if (document.activeElement instanceof HTMLElement) {
         document.activeElement.blur();
@@ -890,6 +917,7 @@ export default function QuotationBuilder() {
 
   const handleCellMouseUp = (e: React.MouseEvent, rowIndex: number, colIndex: number) => {
     setIsSelecting(false);
+    
     // Only auto-focus the textarea if this was a single-cell click, not the end of a drag
     const isSingleCell = selectionStart && selectionStart.rowIndex === rowIndex && selectionStart.colIndex === colIndex;
     if (isSingleCell && !hasRangeSelection()) {
@@ -905,12 +933,14 @@ export default function QuotationBuilder() {
   const getCellClassName = (rowIndex: number, colIndex: number, baseClasses: string) => {
     const isSelected = isCellSelected(rowIndex, colIndex);
     const isActive = selectedCell?.rowIndex === rowIndex && selectedCell?.colIndex === colIndex;
+    
     let highlightClass = "";
     if (isActive) {
       highlightClass = "outline outline-2 outline-emerald-600 outline-offset-[-2px] bg-emerald-50/15 z-10 relative";
     } else if (isSelected) {
       highlightClass = "outline outline-1 outline-emerald-400 outline-offset-[-1px] bg-emerald-50/25 z-10 relative shadow-3xs";
     }
+    
     return `${baseClasses} ${highlightClass}`;
   };
 
@@ -931,6 +961,7 @@ export default function QuotationBuilder() {
     else if (colIndex === 1) field = "qty";
     else if (colIndex === 2) field = "unit";
     else if (colIndex === 3) field = "price";
+    
     if (field) {
       handleRowChange(rowIndex, field, "");
     }
@@ -938,6 +969,7 @@ export default function QuotationBuilder() {
 
   const handleCellContextMenu = (e: React.MouseEvent, idx: number, colIdx: number) => {
     e.preventDefault();
+
     // Preserve an existing multi-cell selection if the right-click happened inside it;
     // otherwise collapse selection down to the single cell that was right-clicked.
     const clickedInsideRange = isCellSelected(idx, colIdx);
@@ -952,12 +984,14 @@ export default function QuotationBuilder() {
     let y = e.clientY;
     const menuWidth = 260;
     const menuHeight = 320;
+    
     if (x + menuWidth > window.innerWidth) {
       x = window.innerWidth - menuWidth - 10;
     }
     if (y + menuHeight > window.innerHeight) {
       y = window.innerHeight - menuHeight - 10;
     }
+    
     if (x < 0) x = 10;
     if (y < 0) y = 10;
 
@@ -976,8 +1010,15 @@ export default function QuotationBuilder() {
   // Helper to convert number to words in Indian numbering system (Lakhs, Crores) with "Taka Only" appended at the end
   const numberToWords = (num: number): string => {
     if (num === 0) return "Zero Taka Only";
-    const ones = [ "", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten", "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen", "Sixteen", "Seventeen", "Eighteen", "Nineteen" ];
-    const tens = [ "", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety" ];
+
+    const ones = [
+      "", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine",
+      "Ten", "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen", "Sixteen",
+      "Seventeen", "Eighteen", "Nineteen"
+    ];
+    const tens = [
+      "", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"
+    ];
 
     const convertTwoDigits = (n: number): string => {
       if (n === 0) return "";
@@ -1002,29 +1043,35 @@ export default function QuotationBuilder() {
 
     const convertIndian = (n: number): string => {
       if (n === 0) return "";
+      
       let words = "";
+      
       // Crores (1,00,00,000)
       const crores = Math.floor(n / 10000000);
       let rem = n % 10000000;
       if (crores > 0) {
         words += (crores >= 100 ? convertIndian(crores) : convertTwoDigits(crores)) + " Crore ";
       }
-      // Lakhs (1,00,000)
+      
+      // Lakhs (1,00,00,000) -> 1,00,000 is 1 Lakh
       const lakhs = Math.floor(rem / 100000);
       rem = rem % 100000;
       if (lakhs > 0) {
         words += convertTwoDigits(lakhs) + " Lakh ";
       }
+      
       // Thousands (1,000)
       const thousands = Math.floor(rem / 1000);
       rem = rem % 1000;
       if (thousands > 0) {
         words += convertTwoDigits(thousands) + " Thousand ";
       }
+      
       // Remaining less than 1,000
       if (rem > 0) {
         words += convertThreeDigits(rem);
       }
+      
       return words.trim();
     };
 
@@ -1039,9 +1086,11 @@ export default function QuotationBuilder() {
     } else {
       result = convertIndian(integerPart);
     }
+
     if (decimalPart > 0) {
       result += " and " + convertTwoDigits(decimalPart) + " Paisa";
     }
+
     return result.trim() + " Taka Only";
   };
 
@@ -1050,6 +1099,7 @@ export default function QuotationBuilder() {
     const { key } = e;
     let targetRow = rowIndex;
     let targetCol = colIndex;
+
     const selectionStart = e.currentTarget.selectionStart;
     const selectionEnd = e.currentTarget.selectionEnd;
     const valueLength = e.currentTarget.value.length;
@@ -1058,547 +1108,1649 @@ export default function QuotationBuilder() {
       targetRow = rowIndex - 1;
     } else if (key === "ArrowDown") {
       targetRow = rowIndex + 1;
-    } else if (key === "ArrowLeft" && selectionStart === 0 && selectionEnd === 0) {
-      targetCol = colIndex - 1;
-    } else if (key === "ArrowRight" && selectionStart === valueLength && selectionEnd === valueLength) {
-      targetCol = colIndex + 1;
-    } else if (key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
+    } else if (key === "ArrowLeft") {
+      // Navigate left if cursor is at the beginning
+      if (selectionStart === 0 && selectionEnd === 0) {
+        targetCol = colIndex - 1;
+      } else {
+        return;
+      }
+    } else if (key === "ArrowRight") {
+      // Navigate right if cursor is at the end
+      if (selectionStart === valueLength && selectionEnd === valueLength) {
+        targetCol = colIndex + 1;
+      } else {
+        return;
+      }
+    } else if (key === "Enter") {
       targetRow = rowIndex + 1;
     } else {
       return;
     }
 
-    if (targetRow >= 0 && targetRow < rows.length && targetCol >= 0 && targetCol <= 3) {
-      e.preventDefault();
-      handleCellClick(targetRow, targetCol);
+    e.preventDefault();
+
+    const targetElement = document.querySelector(
+      `[data-row="${targetRow}"][data-col="${targetCol}"]`
+    ) as HTMLInputElement | HTMLTextAreaElement | null;
+
+    if (targetElement) {
+      targetElement.focus();
+      if (typeof targetElement.select === "function") {
+        targetElement.select();
+      }
     }
   };
 
-  const exportToExcel = () => {
-    const data = rows.map((r) => ({
-      SL: r.sl,
-      Description: r.desc,
-      Quantity: r.qty,
-      Unit: r.unit,
-      Price: r.price,
-      Amount: r.amount,
-    }));
-    const worksheet = XLSX.utils.json_to_sheet(data);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, docType === "quotation" ? "Quotation" : "Invoice");
-    XLSX.writeFile(workbook, `${docType}_export_${dateVal.replace(/\//g, "-")}.xlsx`);
+  // Excel style pasting: parses tabs as columns and newlines as rows, respecting double quotes
+  const handlePaste = (
+    e: React.ClipboardEvent<HTMLTextAreaElement | HTMLInputElement>,
+    startRowIndex: number,
+    startColIndex: number
+  ) => {
+    const clipboardData = e.clipboardData.getData("text");
+    if (!clipboardData) return;
+
+    // TSV state-machine parser to handle double quotes, internal cell newlines, and tabs
+    const parseTSV = (text: string): string[][] => {
+      const result: string[][] = [];
+      let row: string[] = [];
+      let cell = "";
+      let inQuotes = false;
+
+      for (let i = 0; i < text.length; i++) {
+        const char = text[i];
+        const nextChar = text[i + 1];
+
+        if (inQuotes) {
+          if (char === '"') {
+            if (nextChar === '"') {
+              // Escaped double quote: "" -> "
+              cell += '"';
+              i++; // Skip next quote
+            } else {
+              // End of quoted cell
+              inQuotes = false;
+            }
+          } else {
+            cell += char;
+          }
+        } else {
+          if (char === '"') {
+            // Start of quoted cell
+            inQuotes = true;
+          } else if (char === '\t') {
+            // End of column
+            row.push(cell);
+            cell = "";
+          } else if (char === '\r') {
+            // Carriage return: handle trailing \n
+            if (nextChar === '\n') {
+              row.push(cell);
+              result.push(row);
+              row = [];
+              cell = "";
+              i++; // Skip \n
+            } else {
+              row.push(cell);
+              result.push(row);
+              row = [];
+              cell = "";
+            }
+          } else if (char === '\n') {
+            // Newline
+            row.push(cell);
+            result.push(row);
+            row = [];
+            cell = "";
+          } else {
+            cell += char;
+          }
+        }
+      }
+
+      if (cell !== "" || row.length > 0) {
+        row.push(cell);
+        result.push(row);
+      }
+
+      // Clean up empty trailing row which is common when copying from Excel
+      if (
+        result.length > 1 &&
+        result[result.length - 1].length === 1 &&
+        result[result.length - 1][0] === ""
+      ) {
+        result.pop();
+      }
+
+      return result;
+    };
+
+    // If clipboard has tabs or newlines, we parse it as Excel TSV
+    if (clipboardData.includes("\t") || clipboardData.includes("\n") || clipboardData.includes("\r")) {
+      e.preventDefault();
+      const parsedGrid = parseTSV(clipboardData);
+
+      if (parsedGrid.length === 0) return;
+
+      // Case 1: Single cell paste (1 row, 1 col)
+      if (parsedGrid.length === 1 && parsedGrid[0].length === 1) {
+        const parsedVal = parsedGrid[0][0];
+        const textarea = e.currentTarget as HTMLTextAreaElement;
+        const start = textarea.selectionStart ?? 0;
+        const end = textarea.selectionEnd ?? 0;
+        const currentValue = textarea.value;
+        const newValue = currentValue.substring(0, start) + parsedVal + currentValue.substring(end);
+        
+        const fieldMap = ["desc", "qty", "unit", "price"] as const;
+        const field = fieldMap[startColIndex];
+        handleRowChange(startRowIndex, field, newValue);
+        
+        setTimeout(() => {
+          textarea.focus();
+          textarea.selectionStart = textarea.selectionEnd = start + parsedVal.length;
+        }, 0);
+        return;
+      }
+
+      // Case 2: Multi-cell paste
+      setRows((prevRows) => {
+        const updated = [...prevRows];
+        
+        parsedGrid.forEach((cols, rOffset) => {
+          const rIndex = startRowIndex + rOffset;
+          
+          // If we run out of rows, append a new row
+          if (rIndex >= updated.length) {
+            updated.push({
+              sl: updated.length + 1,
+              desc: "",
+              qty: "",
+              unit: "",
+              price: "",
+              amount: 0,
+            });
+          }
+
+          const targetRow = { ...updated[rIndex] };
+
+          // Loop through each copied column
+          cols.forEach((cellValue, cOffset) => {
+            const cIndex = startColIndex + cOffset;
+            
+            if (cIndex === 0) {
+              targetRow.desc = cellValue;
+            } else if (cIndex === 1) {
+              targetRow.qty = cellValue;
+            } else if (cIndex === 2) {
+              targetRow.unit = cellValue;
+            } else if (cIndex === 3) {
+              targetRow.price = cellValue;
+            }
+          });
+
+          // Re-calculate row amount
+          const q = parseFloat(String(targetRow.qty || "")) || 0;
+          const p = parseFloat(String(targetRow.price || "").replace(/,/g, "")) || 0;
+          targetRow.amount = q * p;
+
+          updated[rIndex] = targetRow;
+        });
+
+        return updated;
+      });
+    }
+  };
+
+  // --- DOWNLOAD EXCEL FUNCTION ---
+  const downloadExcel = (filename: string) => {
+    const titleText = docType === "invoice" ? "COMILLA TRADERS - INVOICE" : "COMILLA TRADERS - QUOTATION";
+    const data = [
+      [titleText],
+      ["Messers:", messers],
+      ["Address:", address],
+    ];
+
+    if (docType === "invoice") {
+      data.push(["Invoice No.:", invoiceNo]);
+    }
+    data.push(["Challan No.:", challanNo]);
+    data.push(["Date:", dateVal]);
+    data.push(["Requisition No.:", requisitionNo]);
+    if (docType === "invoice") {
+      data.push(["PO Number:", poNumber]);
+    }
+    data.push([]);
+    data.push(["SL", "Description of Marine Items / Spare Parts", "Qty", "Unit", "Price", "Amount"]);
+
+    rows.forEach((row, idx) => {
+      data.push([
+        (idx + 1).toString(),
+        row.desc,
+        row.qty,
+        row.unit,
+        row.price,
+        row.amount > 0 ? row.amount.toLocaleString("en-US", { minimumFractionDigits: 2 }) : "0.00"
+      ]);
+    });
+
+    data.push([]);
+    
+    if (docType === "invoice") {
+      const vatAmount = (grandTotal * vatPercent) / 100;
+      const calculatedGrandTotal = grandTotal + vatAmount + transportation;
+      data.push(["", "", "", "", "Sub Total", grandTotal.toLocaleString("en-US", { minimumFractionDigits: 2 })]);
+      data.push(["", "", "", "", `VAT (${vatPercent}%)`, vatAmount.toLocaleString("en-US", { minimumFractionDigits: 2 })]);
+      data.push(["", "", "", "", "Transportation", transportation.toLocaleString("en-US", { minimumFractionDigits: 2 })]);
+      data.push(["", "", "", "", "GRAND TOTAL", calculatedGrandTotal.toLocaleString("en-US", { minimumFractionDigits: 2 })]);
+    } else {
+      data.push(["", "", "", "", "TOTAL", grandTotal.toLocaleString("en-US", { minimumFractionDigits: 2 })]);
+    }
+
+    const ws = XLSX.utils.aoa_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, docType === "invoice" ? "Invoice" : "Quotation");
+
+    XLSX.writeFile(wb, filename);
+  };
+
+  // --- PDF DOWNLOAD FUNCTION ---
+  const downloadPDF = async () => {
+    if (!sheetRef.current) return;
+
+    const loadingToast = document.createElement('div');
+    loadingToast.style.position = 'fixed';
+    loadingToast.style.top = '20px';
+    loadingToast.style.left = '50%';
+    loadingToast.style.transform = 'translateX(-50%)';
+    loadingToast.style.background = '#111';
+    loadingToast.style.color = '#fff';
+    loadingToast.style.padding = '12px 24px';
+    loadingToast.style.borderRadius = '8px';
+    loadingToast.style.zIndex = '10000';
+    loadingToast.textContent = 'Generating PDF...';
+    document.body.appendChild(loadingToast);
+
+    try {
+      const canvas = await html2canvas(sheetRef.current, {
+        scale: 2,
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: '#ffffff',
+        logging: false,
+      });
+
+      const imgData = canvas.toDataURL('image/jpeg', 0.95);
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4',
+      });
+
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+      
+      const imgWidth = canvas.width;
+      const imgHeight = canvas.height;
+      const ratio = Math.min(pdfWidth / imgWidth, pdfHeight / imgHeight);
+      const finalWidth = imgWidth * ratio;
+      const finalHeight = imgHeight * ratio;
+
+      const x = (pdfWidth - finalWidth) / 2;
+      const y = (pdfHeight - finalHeight) / 2;
+
+      pdf.addImage(imgData, 'JPEG', x, y, finalWidth, finalHeight);
+      
+      const identifier = docType === "invoice" ? (invoiceNo || "NEW") : (challanNo || "NEW");
+      const prefix = docType === "invoice" ? "Invoice" : "Quotation";
+      const filename = `${prefix}_${identifier.replace(/[\/\\?%*:|"<>\s]/g, "_")}.pdf`;
+      
+      pdf.save(filename);
+    } catch (error) {
+      console.error("PDF generation failed:", error);
+      alert("Failed to generate PDF. Please try again or use Print → Save as PDF.");
+    } finally {
+      document.body.removeChild(loadingToast);
+    }
+  };
+
+  // --- DIRECT DOWNLOAD HANDLER (Quick Download) ---
+  const handleQuickDownload = () => {
+    const identifier = docType === "invoice" ? (invoiceNo || "NEW") : (challanNo || "NEW");
+    const prefix = docType === "invoice" ? "Invoice" : "Quotation";
+    const filename = `${prefix}_${identifier.replace(/[\/\\?%*:|"<>\s]/g, "_")}.xlsx`;
+    downloadExcel(filename);
+  };
+
+  const handleSaveClick = () => {
+    // Generate default filename
+    const identifier = docType === "invoice" ? (invoiceNo || "NEW") : (challanNo || "NEW");
+    const prefix = docType === "invoice" ? "Invoice" : "Quotation";
+    const defaultName = `${prefix}_${identifier.replace(/[\/\\?%*:|"<>\s]/g, "_")}`;
+    setSaveFilename(defaultName);
+    setIsSaveModalOpen(true);
+  };
+
+  const confirmSaveExcel = async () => {
+    let finalName = saveFilename.trim();
+    if (!finalName) finalName = docType === "invoice" ? "Invoice" : "Quotation";
+    if (!finalName.endsWith(".xlsx")) {
+      finalName += ".xlsx";
+    }
+
+    if (saveMethod === "custom" && "showSaveFilePicker" in window) {
+      try {
+        const titleText = docType === "invoice" ? "COMILLA TRADERS - INVOICE" : "COMILLA TRADERS - QUOTATION";
+        const data = [
+          [titleText],
+          ["Messers:", messers],
+          ["Address:", address],
+        ];
+
+        if (docType === "invoice") {
+          data.push(["Invoice No.:", invoiceNo]);
+        }
+        data.push(["Challan No.:", challanNo]);
+        data.push(["Date:", dateVal]);
+        data.push(["Requisition No.:", requisitionNo]);
+        if (docType === "invoice") {
+          data.push(["PO Number:", poNumber]);
+        }
+        data.push([]);
+        data.push(["SL", "Description of Marine Items / Spare Parts", "Qty", "Unit", "Price", "Amount"]);
+
+        rows.forEach((row, idx) => {
+          data.push([
+            (idx + 1).toString(),
+            row.desc,
+            row.qty,
+            row.unit,
+            row.price,
+            row.amount > 0 ? row.amount.toLocaleString("en-US", { minimumFractionDigits: 2 }) : "0.00"
+          ]);
+        });
+
+        data.push([]);
+        
+        if (docType === "invoice") {
+          const vatAmount = (grandTotal * vatPercent) / 100;
+          const calculatedGrandTotal = grandTotal + vatAmount + transportation;
+          data.push(["", "", "", "", "Sub Total", grandTotal.toLocaleString("en-US", { minimumFractionDigits: 2 })]);
+          data.push(["", "", "", "", `VAT (${vatPercent}%)`, vatAmount.toLocaleString("en-US", { minimumFractionDigits: 2 })]);
+          data.push(["", "", "", "", "Transportation", transportation.toLocaleString("en-US", { minimumFractionDigits: 2 })]);
+          data.push(["", "", "", "", "GRAND TOTAL", calculatedGrandTotal.toLocaleString("en-US", { minimumFractionDigits: 2 })]);
+        } else {
+          data.push(["", "", "", "", "TOTAL", grandTotal.toLocaleString("en-US", { minimumFractionDigits: 2 })]);
+        }
+
+        const ws = XLSX.utils.aoa_to_sheet(data);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, docType === "invoice" ? "Invoice" : "Quotation");
+
+        const wbout = XLSX.write(wb, { bookType: "xlsx", type: "array" });
+        const blob = new Blob([wbout], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+        const handle = await (window as any).showSaveFilePicker({
+          suggestedName: finalName,
+          types: [{
+            description: "Excel Spreadsheet",
+            accept: {
+              "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": [".xlsx"]
+            }
+          }]
+        });
+        const writable = await handle.createWritable();
+        await writable.write(blob);
+        await writable.close();
+        setIsSaveModalOpen(false);
+      } catch (err: any) {
+        if (err.name !== "AbortError") {
+          alert("Error saving file: " + err.message);
+        }
+      }
+    } else {
+      // Default download
+      downloadExcel(finalName);
+      setIsSaveModalOpen(false);
+    }
   };
 
   const handlePrint = () => {
     window.print();
   };
 
-  const handleDownloadPDF = () => {
-    window.print();
-  };
+  const safeSelectedRowIndex = Math.max(0, Math.min(selectedRowIndex, rows.length - 1));
+
+  // Column configuration used to iterate real grid columns (-1 = SL ... 4 = Amount)
+  // when rendering the table with merge-aware colSpan/rowSpan.
+  const GRID_COLUMNS = [-1, 0, 1, 2, 3, 4];
 
   return (
-    <div className="min-h-screen bg-slate-900 text-slate-100 p-6 print:bg-white print:text-black print:p-0">
-      <div className="max-w-7xl mx-auto space-y-6 print:max-w-none print:space-y-0">
-        {/* Navigation & Toolbar Header */}
-        <div className="flex flex-wrap items-center justify-between gap-4 bg-slate-800 p-4 rounded-xl border border-slate-700 shadow-md print:hidden">
-          <div className="flex items-center gap-3">
-            <FileText className="h-6 w-6 text-emerald-500" />
-            <h1 className="text-xl font-bold tracking-tight">Comilla Traders Engine</h1>
-            {saveStatus === "saving" && <span className="text-xs bg-amber-500/20 text-amber-400 px-2 py-0.5 rounded animate-pulse">Auto-saving...</span>}
-            {saveStatus === "saved" && <span className="text-xs bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded">Saved online</span>}
-            {saveStatus === "error" && <span className="text-xs bg-rose-500/20 text-rose-400 px-2 py-0.5 rounded">Backup locally</span>}
+    <div className="quotation-container relative min-h-screen flex flex-col items-center bg-[#f1f5f9] py-5 overflow-x-auto text-[#000] font-sans antialiased">
+      {/* Screen Toolbar - Compact Version */}
+      <div className="top-toolbar no-print print:hidden w-full max-w-[210mm] sm:w-[210mm] mb-3 flex flex-col md:flex-row justify-between items-center gap-2 px-3 sm:px-0 z-10">
+        {/* Left Side: Mode Selector & Auto-Save */}
+        <div className="flex flex-wrap items-center gap-2 w-full md:w-auto justify-between md:justify-start">
+          <div className="flex bg-slate-200 p-1 rounded-lg border border-slate-300 shadow-sm shrink-0">
+            <button
+              type="button"
+              onClick={() => setDocType("quotation")}
+              className={`px-2.5 py-0.5 rounded-md text-[10px] font-bold transition-all cursor-pointer ${
+                docType === "quotation"
+                  ? "bg-indigo-600 text-white shadow-sm"
+                  : "text-slate-700 hover:text-slate-900"
+              }`}
+            >
+              Quotation
+            </button>
+            <button
+              type="button"
+              onClick={() => setDocType("invoice")}
+              className={`px-2.5 py-0.5 rounded-md text-[10px] font-bold transition-all cursor-pointer ${
+                docType === "invoice"
+                  ? "bg-slate-900 text-white shadow-sm"
+                  : "text-slate-700 hover:text-slate-900"
+              }`}
+            >
+              Invoice
+            </button>
           </div>
-          <div className="flex items-center gap-2 flex-wrap">
-            <button onClick={startNewDoc} className="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 rounded-lg text-sm font-medium flex items-center gap-2 transition">
-              <FilePlus className="h-4 w-4" /> New Sheet
-            </button>
-            <button onClick={() => saveCurrentDocToApp()} className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 rounded-lg text-sm font-medium flex items-center gap-2 transition shadow-sm">
-              <Save className="h-4 w-4" /> Manual Save
-            </button>
-            <button onClick={duplicateCurrentDoc} className="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 rounded-lg text-sm font-medium flex items-center gap-2 transition">
-              <Copy className="h-4 w-4" /> Duplicate
-            </button>
-            <button onClick={exportToExcel} className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 rounded-lg text-sm font-medium flex items-center gap-2 transition shadow-sm">
-              <Download className="h-4 w-4" /> Export Excel
-            </button>
-            <button onClick={handleDownloadPDF} className="px-3 py-1.5 bg-cyan-600 hover:bg-cyan-500 rounded-lg text-sm font-medium flex items-center gap-2 transition shadow-sm">
-              <FileText className="h-4 w-4" /> Download PDF
-            </button>
-            <button onClick={handlePrint} className="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 rounded-lg text-sm font-medium flex items-center gap-2 transition">
-              <Printer className="h-4 w-4" /> Print Setup
-            </button>
+
+          {/* Auto-Save Toggle - Compact */}
+          <div className="flex items-center gap-1.5 bg-white px-2 py-1 rounded-lg border border-slate-200 shadow-xs shrink-0">
+            <label className="relative inline-flex items-center cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={autoSaveEnabled}
+                onChange={(e) => {
+                  setAutoSaveEnabled(e.target.checked);
+                  localStorage.setItem("comilla_autosave_enabled", String(e.target.checked));
+                }}
+                className="sr-only peer"
+              />
+              <div className="w-7 h-4 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[1.5px] after:left-[1.5px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-emerald-500"></div>
+              <span className="ml-1.5 text-[9px] font-bold text-slate-600 uppercase tracking-wider">Auto</span>
+            </label>
+            {lastSavedTime && (
+              <span className="text-[8px] text-emerald-600 font-medium flex items-center gap-1">
+                <span className="h-1 w-1 rounded-full bg-emerald-500 animate-pulse"></span>
+                <span className="hidden sm:inline">{lastSavedTime}</span>
+              </span>
+            )}
           </div>
         </div>
 
-        {/* Live Main Layout Container */}
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 items-start print:block">
-          {/* Main Editing Sheet Canvas Workspace */}
-          <div className="lg:col-span-3 bg-white text-slate-900 p-8 rounded-2xl shadow-xl border border-slate-200 print:shadow-none print:border-none print:p-0 min-h-[1056px] relative flex flex-col justify-between">
-            {/* Main content body */}
-            <div>
-              {/* Sheet Header Layout */}
-              <div className="flex justify-between items-start border-b-2 border-slate-900 pb-4 mb-6">
-                <div>
-                  <h2 className="text-3xl font-black tracking-tight text-slate-900 uppercase">Comilla Traders</h2>
-                  <p className="text-xs text-slate-600 font-medium mt-0.5">Dealers in: All kinds of Electric Motors, Water Pumps & Hardware goods.</p>
-                  <p className="text-xs text-slate-500">123 Nawabpur Road, Dhaka-1100, Bangladesh</p>
-                </div>
-                <div className="text-right flex flex-col items-end">
-                  <div className="relative group mb-1 print:hidden">
-                    <select 
-                      value={docType} 
-                      onChange={(e) => setDocType(e.target.value as any)} 
-                      className="appearance-none font-black text-2xl text-emerald-700 bg-emerald-50 hover:bg-emerald-100 pr-8 pl-3 py-1 rounded-lg border border-emerald-200 uppercase tracking-wide cursor-pointer focus:outline-hidden transition"
-                    >
-                      <option value="quotation">Quotation</option>
-                      <option value="invoice">Bill / Invoice</option>
-                    </select>
-                    <ChevronDown className="h-4 w-4 absolute right-2.5 top-1/2 -translate-y-1/2 text-emerald-700 pointer-events-none group-hover:scale-110 transition" />
-                  </div>
-                  <h3 className="hidden print:block font-black text-2xl text-slate-900 uppercase tracking-wide mb-1">
-                    {docType === "quotation" ? "Quotation" : "Bill / Invoice"}
-                  </h3>
-                  <div className="flex items-center gap-1 text-sm font-bold text-slate-700 relative group cursor-pointer" onClick={triggerDatePicker}>
-                    <Calendar className="h-4 w-4 text-slate-500 group-hover:text-emerald-600 transition print:hidden" />
-                    <span>Date:</span>
-                    <span className="border-b border-dashed border-slate-400 group-hover:border-emerald-600 px-1 font-black text-slate-900 transition">{dateVal}</span>
-                    <input 
-                      ref={dateRef}
-                      type="date" 
-                      onChange={handleDatePickerChange}
-                      className="absolute opacity-0 pointer-events-none w-0 h-0" 
-                    />
-                  </div>
-                </div>
-              </div>
+        {/* Right Side: Action Buttons - Compact */}
+        <div className="flex flex-wrap items-center gap-1.5 w-full md:w-auto justify-end">
+          <button 
+            onClick={startNewDoc} 
+            className="bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 font-bold text-[10px] py-1 px-2.5 rounded-md shadow-sm hover:shadow transition-all cursor-pointer flex items-center gap-1"
+            title="Start a fresh blank sheet"
+          >
+            <FilePlus className="h-3 w-3" />
+            <span className="hidden sm:inline">NEW</span>
+          </button>
+          
+          {currentDocId && (
+            <>
+              <button 
+                onClick={duplicateCurrentDoc} 
+                className="bg-white hover:bg-indigo-50 border border-indigo-200 text-indigo-700 font-bold text-[10px] py-1 px-2.5 rounded-md shadow-sm hover:shadow transition-all cursor-pointer flex items-center gap-1"
+                title="Save a duplicated copy"
+              >
+                <Copy className="h-3 w-3" />
+                <span className="hidden sm:inline">DUPE</span>
+              </button>
+              <button 
+                onClick={() => deleteSavedDoc(currentDocId)} 
+                className="bg-white hover:bg-rose-50 border border-rose-200 text-rose-600 hover:text-rose-700 font-bold text-[10px] py-1 px-2.5 rounded-md shadow-sm hover:shadow transition-all cursor-pointer flex items-center gap-1"
+                title="Delete this sheet"
+              >
+                <Trash2 className="h-3 w-3 text-rose-500" />
+                <span className="hidden sm:inline">DEL</span>
+              </button>
+            </>
+          )}
 
-              {/* Meta Fields Grid Section */}
-              <div className="grid grid-cols-2 gap-4 mb-6 text-sm">
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <span className="font-bold text-slate-700 min-w-[70px]">Messes:</span>
-                    <input 
-                      type="text" 
-                      value={messers} 
-                      onChange={(e) => setMessers(e.target.value)}
-                      placeholder="Customer/Business Name" 
-                      className="flex-1 bg-slate-50 hover:bg-slate-100/70 focus:bg-white border border-slate-200 focus:border-slate-400 rounded px-2 py-1 text-slate-900 font-medium placeholder:text-slate-400 focus:outline-hidden transition print:bg-transparent print:border-none print:p-0 print:font-bold"
-                    />
-                  </div>
-                  <div className="flex items-start gap-2">
-                    <span className="font-bold text-slate-700 min-w-[70px] pt-1">Address:</span>
-                    <textarea 
-                      value={address} 
-                      onChange={(e) => setAddress(e.target.value)}
-                      placeholder="Delivery or Billing Address" 
-                      rows={2}
-                      className="flex-1 bg-slate-50 hover:bg-slate-100/70 focus:bg-white border border-slate-200 focus:border-slate-400 rounded px-2 py-1 text-slate-900 font-medium placeholder:text-slate-400 focus:outline-hidden resize-none transition print:bg-transparent print:border-none print:p-0"
-                    />
-                  </div>
-                </div>
-                <div className="space-y-2 border-l border-slate-200 pl-4 print:border-none print:pl-0">
-                  {docType === "invoice" ? (
-                    <div className="flex items-center gap-2">
-                      <span className="font-bold text-slate-700 min-w-[110px]">Invoice No:</span>
-                      <input 
-                        type="text" 
-                        value={invoiceNo} 
-                        onChange={(e) => setInvoiceNo(e.target.value)}
-                        placeholder="CT-2026-XXXX" 
-                        className="flex-1 bg-slate-50 focus:bg-white border border-slate-200 rounded px-2 py-1 text-slate-900 font-bold print:bg-transparent print:border-none print:p-0"
-                      />
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-2">
-                      <span className="font-bold text-slate-700 min-w-[110px]">Challan No:</span>
-                      <input 
-                        type="text" 
-                        value={challanNo} 
-                        onChange={(e) => setChallanNo(e.target.value)}
-                        placeholder="Optional Challan Reference" 
-                        className="flex-1 bg-slate-50 focus:bg-white border border-slate-200 rounded px-2 py-1 text-slate-900 font-medium print:bg-transparent print:border-none print:p-0"
-                      />
-                    </div>
-                  )}
-                  <div className="flex items-center gap-2">
-                    <span className="font-bold text-slate-700 min-w-[110px]">Requisition No:</span>
-                    <input 
-                      type="text" 
-                      value={requisitionNo} 
-                      onChange={(e) => setRequisitionNo(e.target.value)}
-                      placeholder="Req reference number" 
-                      className="flex-1 bg-slate-50 focus:bg-white border border-slate-200 rounded px-2 py-1 text-slate-900 font-medium print:bg-transparent print:border-none print:p-0"
-                    />
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="font-bold text-slate-700 min-w-[110px]">P.O. Number:</span>
-                    <input 
-                      type="text" 
-                      value={poNumber} 
-                      onChange={(e) => setPoNumber(e.target.value)}
-                      placeholder="Purchase Order Link" 
-                      className="flex-1 bg-slate-50 focus:bg-white border border-slate-200 rounded px-2 py-1 text-slate-900 font-medium print:bg-transparent print:border-none print:p-0"
-                    />
-                  </div>
-                </div>
-              </div>
+          <button 
+            onClick={() => saveCurrentDocToApp()} 
+            disabled={saveStatus === "saving"}
+            className={`${
+              saveStatus === "saved" 
+                ? "bg-emerald-600 hover:bg-emerald-700" 
+                : saveStatus === "error" 
+                ? "bg-rose-600 hover:bg-rose-700" 
+                : "bg-indigo-600 hover:bg-indigo-700"
+            } text-white font-bold text-[10px] py-1 px-2.5 rounded-md shadow-sm hover:shadow transition-all cursor-pointer flex items-center gap-1 disabled:opacity-85`}
+            title="Save to Cloud Database"
+          >
+            {saveStatus === "saving" ? (
+              <>
+                <RefreshCw className="h-3 w-3 animate-spin" />
+                <span className="hidden sm:inline">SAVING</span>
+              </>
+            ) : saveStatus === "saved" ? (
+              <>
+                <Check className="h-3 w-3" />
+                <span className="hidden sm:inline">SAVED</span>
+              </>
+            ) : saveStatus === "error" ? (
+              <>
+                <Trash2 className="h-3 w-3" />
+                <span className="hidden sm:inline">FAILED</span>
+              </>
+            ) : (
+              <>
+                <Save className="h-3 w-3" />
+                <span className="hidden sm:inline">SAVE</span>
+              </>
+            )}
+          </button>
+          
+          {/* DOWNLOAD BUTTON - Direct download to device */}
+          <button 
+            onClick={handleQuickDownload} 
+            className="bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-[10px] py-1 px-3 rounded-md shadow-sm hover:shadow transition-all cursor-pointer flex items-center gap-1.5"
+            title="Download Excel file directly to your device"
+          >
+            <Download className="h-3.5 w-3.5" />
+            <span>DOWNLOAD</span>
+          </button>
 
-              {/* Advanced Excel-Style Structured Table Grid */}
-              <div className="border border-slate-300 rounded-lg overflow-hidden shadow-xs relative print:border-slate-400">
-                <table className="w-full text-left border-collapse table-fixed select-none">
-                  <thead>
-                    <tr className="bg-slate-100 text-slate-800 text-xs font-black uppercase tracking-wider border-b border-slate-300 print:bg-slate-200 print:text-black">
-                      <th className="w-[6%] text-center border-r border-slate-300 py-2.5 print:border-slate-400">S.L.</th>
-                      <th className="w-[50%] px-3 border-r border-slate-300 py-2.5 print:border-slate-400">Description of Goods</th>
-                      <th className="w-[10%] text-center border-r border-slate-300 py-2.5 print:border-slate-400">Qty</th>
-                      <th className="w-[10%] text-center border-r border-slate-300 py-2.5 print:border-slate-400">Unit</th>
-                      <th className="w-[11%] text-right px-3 border-r border-slate-300 py-2.5 print:border-slate-400">Price (৳)</th>
-                      <th className="w-[13%] text-right px-3 py-2.5">Amount (৳)</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {rows.map((row, idx) => {
-                      // Column 0: Description
-                      const descMerge = getMergeInfo(idx, 0);
-                      // Column 1: Qty
-                      const qtyMerge = getMergeInfo(idx, 1);
-                      // Column 2: Unit
-                      const unitMerge = getMergeInfo(idx, 2);
-                      // Column 3: Price
-                      const priceMerge = getMergeInfo(idx, 3);
+          {/* NEW PDF DOWNLOAD BUTTON */}
+          <button 
+            onClick={downloadPDF} 
+            className="bg-rose-600 hover:bg-rose-700 text-white font-bold text-[10px] py-1 px-3 rounded-md shadow-sm hover:shadow transition-all cursor-pointer flex items-center gap-1.5"
+            title="Download PDF file directly to your device"
+          >
+            <Download className="h-3.5 w-3.5" />
+            <span>PDF</span>
+          </button>
+          
+          <button 
+            onClick={handleSaveClick} 
+            className="bg-blue-600 hover:bg-blue-700 text-white font-bold text-[10px] py-1 px-2.5 rounded-md shadow-sm hover:shadow transition-all cursor-pointer flex items-center gap-1"
+            title="Save Excel with custom options"
+          >
+            <Save className="h-3 w-3" />
+            <span className="hidden sm:inline">SAVE AS</span>
+          </button>
+          
+          <button 
+            onClick={handlePrint} 
+            className="bg-rose-600 hover:bg-rose-700 text-white font-bold text-[10px] py-1 px-2.5 rounded-md shadow-sm hover:shadow transition-all cursor-pointer flex items-center gap-1"
+          >
+            <Printer className="h-3 w-3" />
+            <span className="hidden sm:inline">PRINT</span>
+          </button>
+        </div>
+      </div>
 
-                      return (
-                        <tr key={row.sl} className="border-b border-slate-200 hover:bg-slate-50/50 group/row print:border-slate-300 print:hover:bg-transparent">
-                          {/* SL Column */}
-                          <td 
-                            className="text-center font-bold text-xs text-slate-500 bg-slate-50/50 border-r border-slate-200 py-0.5 print:bg-transparent print:border-r-slate-300"
-                          >
-                            {row.sl}
-                          </td>
-
-                          {/* Description Input Cell */}
-                          {(!descMerge.region || descMerge.isAnchor) && (
-                            <td 
-                              colSpan={descMerge.isAnchor ? (descMerge.region!.endCol - descMerge.region!.startCol + 1) : 1}
-                              rowSpan={descMerge.isAnchor ? (descMerge.region!.endRow - descMerge.region!.startRow + 1) : 1}
-                              onMouseDown={(e) => handleCellMouseDown(e, idx, 0)}
-                              onMouseEnter={() => handleCellMouseEnter(idx, 0)}
-                              onMouseUp={(e) => handleCellMouseUp(e, idx, 0)}
-                              onContextMenu={(e) => handleCellContextMenu(e, idx, 0)}
-                              onClick={() => handleCellClick(idx, 0)}
-                              className={getCellClassName(idx, 0, "p-0 border-r border-slate-200 align-top transition-colors duration-150 print:border-r-slate-300")}
-                            >
-                              <textarea
-                                data-row={idx}
-                                data-col={0}
-                                value={row.desc}
-                                onChange={(e) => handleRowChange(idx, "desc", e.target.value)}
-                                onKeyDown={(e) => handleKeyDown(e, idx, 0)}
-                                rows={1}
-                                className="w-full bg-transparent resize-none px-3 py-1.5 text-sm font-medium text-slate-900 focus:outline-hidden block leading-relaxed placeholder:text-slate-300 print:placeholder:text-transparent print:py-1"
-                                placeholder="..."
-                              />
-                            </td>
-                          )}
-
-                          {/* Quantity Input Cell */}
-                          {(!qtyMerge.region || qtyMerge.isAnchor) && (
-                            <td 
-                              colSpan={qtyMerge.isAnchor ? (qtyMerge.region!.endCol - qtyMerge.region!.startCol + 1) : 1}
-                              rowSpan={qtyMerge.isAnchor ? (qtyMerge.region!.endRow - qtyMerge.region!.startRow + 1) : 1}
-                              onMouseDown={(e) => handleCellMouseDown(e, idx, 1)}
-                              onMouseEnter={() => handleCellMouseEnter(idx, 1)}
-                              onMouseUp={(e) => handleCellMouseUp(e, idx, 1)}
-                              onContextMenu={(e) => handleCellContextMenu(e, idx, 1)}
-                              onClick={() => handleCellClick(idx, 1)}
-                              className={getCellClassName(idx, 1, "p-0 border-r border-slate-200 align-top transition-colors duration-150 text-center print:border-r-slate-300")}
-                            >
-                              <input
-                                type="text"
-                                data-row={idx}
-                                data-col={1}
-                                value={row.qty}
-                                onChange={(e) => handleRowChange(idx, "qty", e.target.value)}
-                                onKeyDown={(e) => handleKeyDown(e, idx, 1)}
-                                className="w-full bg-transparent text-center px-1 py-1.5 text-sm font-bold text-slate-900 focus:outline-hidden block print:py-1"
-                                placeholder="0"
-                              />
-                            </td>
-                          )}
-
-                          {/* Unit Input Cell */}
-                          {(!unitMerge.region || unitMerge.isAnchor) && (
-                            <td 
-                              colSpan={unitMerge.isAnchor ? (unitMerge.region!.endCol - unitMerge.region!.startCol + 1) : 1}
-                              rowSpan={unitMerge.isAnchor ? (unitMerge.region!.endRow - unitMerge.region!.startRow + 1) : 1}
-                              onMouseDown={(e) => handleCellMouseDown(e, idx, 2)}
-                              onMouseEnter={() => handleCellMouseEnter(idx, 2)}
-                              onMouseUp={(e) => handleCellMouseUp(e, idx, 2)}
-                              onContextMenu={(e) => handleCellContextMenu(e, idx, 2)}
-                              onClick={() => handleCellClick(idx, 2)}
-                              className={getCellClassName(idx, 2, "p-0 border-r border-slate-200 align-top transition-colors duration-150 text-center print:border-r-slate-300")}
-                            >
-                              <input
-                                type="text"
-                                data-row={idx}
-                                data-col={2}
-                                value={row.unit}
-                                onChange={(e) => handleRowChange(idx, "unit", e.target.value)}
-                                onKeyDown={(e) => handleKeyDown(e, idx, 2)}
-                                className="w-full bg-transparent text-center px-1 py-1.5 text-sm font-medium text-slate-600 focus:outline-hidden block print:py-1"
-                                placeholder="pcs"
-                              />
-                            </td>
-                          )}
-
-                          {/* Price Input Cell */}
-                          {(!priceMerge.region || priceMerge.isAnchor) && (
-                            <td 
-                              colSpan={priceMerge.isAnchor ? (priceMerge.region!.endCol - priceMerge.region!.startCol + 1) : 1}
-                              rowSpan={priceMerge.isAnchor ? (priceMerge.region!.endRow - priceMerge.region!.startRow + 1) : 1}
-                              onMouseDown={(e) => handleCellMouseDown(e, idx, 3)}
-                              onMouseEnter={() => handleCellMouseEnter(idx, 3)}
-                              onMouseUp={(e) => handleCellMouseUp(e, idx, 3)}
-                              onContextMenu={(e) => handleCellContextMenu(e, idx, 3)}
-                              onClick={() => handleCellClick(idx, 3)}
-                              className={getCellClassName(idx, 3, "p-0 border-r border-slate-200 align-top transition-colors duration-150 text-right print:border-r-slate-300")}
-                            >
-                              <input
-                                type="text"
-                                data-row={idx}
-                                data-col={3}
-                                value={row.price}
-                                onChange={(e) => handleRowChange(idx, "price", e.target.value)}
-                                onKeyDown={(e) => handleKeyDown(e, idx, 3)}
-                                className="w-full bg-transparent text-right px-3 py-1.5 text-sm font-bold text-slate-900 focus:outline-hidden block print:py-1"
-                                placeholder="0.00"
-                              />
-                            </td>
-                          )}
-
-                          {/* Calculated Amount Cell */}
-                          <td className="text-right px-3 py-1.5 text-sm font-black text-slate-900 bg-slate-50/20 align-top tracking-wide print:bg-transparent print:py-1">
-                            {row.amount > 0 ? row.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "-"}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-
-              {/* Table Append Tool Buttons Row */}
-              <div className="flex justify-between items-center mt-3 print:hidden">
-                <div className="flex gap-1.5">
-                  <button onClick={addRow} className="px-2.5 py-1 text-xs font-bold bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-700 rounded-md flex items-center gap-1.5 transition">
-                    <Plus className="h-3.5 w-3.5 text-slate-500" /> Add Row
-                  </button>
-                  <button onClick={removeRow} className="px-2.5 py-1 text-xs font-bold bg-slate-50 hover:bg-slate-100 border border-slate-300 text-rose-600 rounded-md flex items-center gap-1.5 transition">
-                    <Trash2 className="h-3.5 w-3.5 text-rose-400" /> Pop Row
-                  </button>
-                </div>
-                {hasRangeSelection() && (
-                  <button 
-                    onClick={toggleMergeSelectedRangeV2}
-                    className="px-3 py-1 text-xs font-black bg-emerald-50 text-emerald-700 border border-emerald-300 rounded-md flex items-center gap-1.5 animate-fade-in shadow-xs"
-                  >
-                    <Heading className="h-3.5 w-3.5" />
-                    Merge / Break Selected Range Cells
-                  </button>
-                )}
-              </div>
+      {/* Editing State Banner */}
+      {currentDocId && (
+        <div className="no-print print:hidden w-full max-w-[210mm] sm:w-[210mm] mb-2 px-3 sm:px-0 z-10 animate-in fade-in slide-in-from-top-2 duration-250">
+          <div className="bg-indigo-50 border border-indigo-100 rounded-lg p-2 flex items-center justify-between text-xs text-indigo-950 shadow-sm">
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="bg-indigo-600 text-white font-black text-[8px] px-1.5 py-0.5 rounded-sm uppercase tracking-wider shrink-0 shadow-xs">
+                Editing
+              </span>
+              <span className="font-bold text-slate-800 truncate text-[11px]" title={savedDocs.find(d => d.id === currentDocId)?.name || "Active Sheet"}>
+                {savedDocs.find(d => d.id === currentDocId)?.name || "Active Sheet"}
+              </span>
             </div>
+            <button
+              type="button"
+              onClick={resetSheetFields}
+              className="text-[10px] font-bold text-indigo-600 hover:text-indigo-800 hover:bg-indigo-100/50 px-2 py-1 rounded transition-all cursor-pointer uppercase tracking-wider shrink-0"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
 
-            {/* Calculations Breakdown and Totals Bottom Section */}
-            <div className="mt-8 pt-6 border-t border-slate-200">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start print:grid-cols-3">
-                <div className="md:col-span-2 space-y-3 print:col-span-2">
-                  <div className="text-xs font-medium text-slate-500 uppercase tracking-wider">Amount in Words:</div>
-                  <div className="bg-slate-50 rounded-xl p-3 border border-slate-200/60 text-sm font-black text-slate-800 leading-relaxed capitalize print:bg-transparent print:border-none print:p-0 print:text-black">
-                    {numberToWords(calculatedGrandTotal)}
-                  </div>
-                  
-                  {/* Notes / Terms Condition Block */}
-                  <div className="pt-2">
-                    <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 print:text-slate-500">Terms & Conditions:</div>
-                    <p className="text-[11px] text-slate-500 leading-normal print:text-slate-600">
-                      1. Warranty covers manufacturing defects only. 2. Goods once sold cannot be returned or exchanged. 
-                      3. Prices quoted are valid for 7 business days from date of issue.
-                    </p>
-                  </div>
-                </div>
-
-                {/* Mathematical Sums Breakdown Column block */}
-                <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-2.5 text-sm print:bg-transparent print:border-none print:p-0">
-                  <div className="flex justify-between items-center text-slate-600 font-medium">
-                    <span>Subtotal:</span>
-                    <span className="font-bold text-slate-900 tracking-wide">৳{grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                  </div>
-                  
-                  {docType === "invoice" && (
-                    <>
-                      <div className="flex justify-between items-center text-slate-600 font-medium">
-                        <div className="flex items-center gap-1.5 print:hidden">
-                          <span>VAT:</span>
-                          <input 
-                            type="number" 
-                            value={vatPercent} 
-                            onChange={(e) => setVatPercent(Math.max(0, parseFloat(e.target.value) || 0))}
-                            className="w-12 bg-white border border-slate-300 rounded text-center font-bold text-xs py-0.5"
-                          />
-                          <span>%</span>
-                        </div>
-                        <span className="hidden print:inline">VAT ({vatPercent}%):</span>
-                        <span className="font-bold text-slate-900">৳{((grandTotal * vatPercent) / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                      </div>
-                      <div className="flex justify-between items-center text-slate-600 font-medium">
-                        <div className="flex items-center gap-1.5 print:hidden">
-                          <span>Carriage:</span>
-                          <input 
-                            type="number" 
-                            value={transportation} 
-                            onChange={(e) => setTransportation(Math.max(0, parseFloat(e.target.value) || 0))}
-                            className="w-20 bg-white border border-slate-300 rounded text-right font-bold text-xs py-0.5 px-1.5"
-                          />
-                        </div>
-                        <span className="hidden print:inline">Carriage / Transport:</span>
-                        <span className="font-bold text-slate-900">৳{transportation.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                      </div>
-                    </>
-                  )}
-
-                  <div className="border-t border-slate-300/80 my-1"></div>
-                  <div className="flex justify-between items-center text-slate-900">
-                    <span className="font-black text-xs uppercase tracking-wider text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded print:bg-transparent print:p-0 print:text-black">Grand Total:</span>
-                    <span className="font-black text-base text-emerald-700 tracking-wide print:text-black">৳{calculatedGrandTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Authorized Corporate Footer Signoff Signatures Row */}
-              <div className="flex justify-between items-end mt-16 text-xs font-bold text-slate-700 px-2">
-                <div className="text-center">
-                  <div className="w-36 border-b border-slate-400 mb-1.5"></div>
-                  <p className="text-slate-500">Customer's Signature</p>
-                </div>
-                <div className="text-center">
-                  <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-10 print:text-slate-500">For Comilla Traders</p>
-                  <div className="w-40 border-b border-slate-900 mb-1.5"></div>
-                  <p className="text-slate-900 font-black">Authorized Signatory</p>
-                </div>
-              </div>
+      {/* Excel / Google Sheets Style Full App Layout Toolbar - Compact */}
+      <div className="excel-editor-container no-print print:hidden w-full max-w-[210mm] sm:w-[210mm] bg-[#f8f9fa] border border-slate-300 rounded-lg shadow-md mb-3 overflow-hidden text-slate-800 z-10">
+        {/* Menu Bar: File */}
+        <div className="flex flex-wrap items-center gap-1 bg-[#f8f9fa] border-b border-slate-200 px-2 py-1 text-xs select-none">
+          <div className="font-semibold text-[11px] text-emerald-700 mr-2 font-mono flex items-center gap-1">
+            <span className="bg-emerald-700 text-white font-black text-[8px] px-1 py-0.5 rounded-xs leading-none shadow-xs">田</span>
+            <span className="font-extrabold tracking-tight font-sans text-[10px]">ComillaSheets</span>
+          </div>
+          
+          {/* File Dropdown */}
+          <div className="relative group">
+            <button className="px-1.5 py-0.5 hover:bg-slate-200 rounded-md cursor-pointer transition-all font-semibold text-slate-700 text-[10px]">File</button>
+            <div className="hidden group-hover:block absolute left-0 top-full bg-white border border-slate-200 shadow-xl rounded-md py-1 w-48 z-50 animate-in fade-in slide-in-from-top-1 duration-100">
+              <button onClick={startNewDoc} className="w-full text-left px-3 py-1 hover:bg-slate-100 flex items-center gap-2 text-[10px] text-slate-700 font-bold">
+                <FilePlus className="h-3 w-3 text-slate-400" /> New Sheet
+              </button>
+              <button onClick={saveCurrentDocToApp} className="w-full text-left px-3 py-1 hover:bg-slate-100 flex items-center gap-2 text-[10px] text-slate-700 font-bold">
+                <Save className="h-3 w-3 text-slate-400" /> Save to Cloud
+              </button>
+              <button onClick={handleQuickDownload} className="w-full text-left px-3 py-1 hover:bg-slate-100 flex items-center gap-2 text-[10px] text-slate-700 font-bold">
+                <Download className="h-3 w-3 text-emerald-600" /> Download Excel
+              </button>
+              <button onClick={downloadPDF} className="w-full text-left px-3 py-1 hover:bg-slate-100 flex items-center gap-2 text-[10px] text-slate-700 font-bold">
+                <Download className="h-3 w-3 text-rose-600" /> Download PDF
+              </button>
+              <button onClick={handleSaveClick} className="w-full text-left px-3 py-1 hover:bg-slate-100 flex items-center gap-2 text-[10px] text-slate-700 font-bold">
+                <Save className="h-3 w-3 text-blue-600" /> Save As...
+              </button>
+              <button onClick={handlePrint} className="w-full text-left px-3 py-1 hover:bg-slate-100 flex items-center gap-2 text-[10px] text-slate-700 font-bold border-t border-slate-100">
+                <Printer className="h-3 w-3 text-slate-400" /> Print / PDF
+              </button>
             </div>
           </div>
 
-          {/* Sidebar Document Repository Panel Log list */}
-          <div className="space-y-4 print:hidden">
-            {/* Auto Save Toggle Configuration Panel Card */}
-            <div className="bg-slate-800 p-4 rounded-xl border border-slate-700 shadow-md">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <History className="h-4 w-4 text-emerald-400" />
-                  <span className="text-sm font-bold text-slate-200">Real-time Auto-Save</span>
-                </div>
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input 
-                    type="checkbox" 
-                    checked={autoSaveEnabled}
-                    onChange={(e) => {
-                      setAutoSaveEnabled(e.target.checked);
-                      localStorage.setItem("comilla_autosave_enabled", String(e.target.checked));
-                    }}
-                    className="sr-only peer" 
-                  />
-                  <div className="w-9 h-5 bg-slate-600 peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-600"></div>
-                </label>
-              </div>
-              {lastSavedTime && (
-                <div className="text-[11px] text-slate-400 mt-2 text-right font-medium">
-                  Last synced: <span className="text-slate-200 font-bold">{lastSavedTime}</span>
-                </div>
-              )}
-            </div>
+          {/* Merge/Unmerge action */}
+          <button
+            type="button"
+            onClick={toggleMergeSelectedRangeV2}
+            title="Merge or unmerge the selected cells"
+            className="ml-1 px-1.5 py-0.5 hover:bg-emerald-100 rounded-md cursor-pointer transition-all font-bold text-emerald-700 text-[10px] flex items-center gap-1 border border-emerald-200 bg-emerald-50"
+          >
+            <Heading className="h-3 w-3" />
+            <span className="hidden sm:inline">
+              {(() => {
+                if (!selectionStart) return "Merge";
+                const existing = getMergeRegionAt(selectionStart.rowIndex, selectionStart.colIndex);
+                return existing ? "Unmerge" : "Merge";
+              })()}
+            </span>
+          </button>
 
-            {/* Cloud Document Vault Database List Card */}
-            <div className="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden shadow-md">
-              <div className="p-4 bg-slate-700/50 border-b border-slate-700 flex justify-between items-center">
-                <h3 className="text-sm font-black tracking-wide text-slate-200 uppercase flex items-center gap-2">
-                  <History className="h-4 w-4 text-indigo-400" /> Cloud Database
-                </h3>
-                <span className="text-xs font-bold px-1.5 py-0.5 rounded bg-slate-600 text-slate-300">{savedDocs.length} sheets</span>
-              </div>
-              <div className="divide-y divide-slate-700 max-h-[640px] overflow-y-auto custom-scrollbar">
-                {savedDocs.length === 0 ? (
-                  <div className="p-6 text-center text-slate-500 text-xs font-medium">No saved documents found in online storage.</div>
-                ) : (
-                  savedDocs.map((docItem) => (
-                    <div 
-                      key={docItem.id}
-                      onClick={() => loadSavedDoc(docItem)}
-                      className={`p-3.5 text-left cursor-pointer transition flex items-start justify-between gap-2 group ${currentDocId === docItem.id ? "bg-emerald-950/40 border-l-4 border-emerald-500" : "hover:bg-slate-700/50"}`}
-                    >
-                      <div className="space-y-1 min-w-0 flex-1">
-                        <div className={`text-xs font-bold truncate ${currentDocId === docItem.id ? "text-emerald-400" : "text-slate-200 group-hover:text-white"}`}>{docItem.name}</div>
-                        <div className="flex items-center gap-1.5 text-[10px] text-slate-400 font-medium">
-                          <span className={`uppercase font-black px-1 rounded-sm text-[9px] ${docItem.docType === "invoice" ? "bg-amber-500/10 text-amber-400" : "bg-blue-500/10 text-blue-400"}`}>{docItem.docType}</span>
-                          <span>•</span>
-                          <span>{new Date(docItem.updatedAt).toLocaleDateString(undefined, {month: 'short', day: 'numeric', hour: '2-digit', minute:'2-digit'})}</span>
-                        </div>
-                      </div>
-                      <div className="flex items-center opacity-0 group-hover:opacity-100 transition gap-0.5">
-                        <button 
-                          onClick={(e) => renameSavedDoc(docItem.id, e)} 
-                          title="Rename document"
-                          className="p-1 hover:bg-slate-600 text-slate-400 hover:text-white rounded transition"
-                        >
-                          <Heading className="h-3.5 w-3.5" />
-                        </button>
-                        <button 
-                          onClick={(e) => deleteSavedDoc(docItem.id, e)} 
-                          title="Delete document permanent"
-                          className="p-1 hover:bg-rose-950/60 text-slate-400 hover:text-rose-400 rounded transition"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
+          {/* Right-aligned Quick-access Buttons */}
+          <div className="ml-auto flex items-center gap-1">
+            <button 
+              onClick={handleQuickDownload}
+              title="Download Excel file directly to your device"
+              className="px-1.5 py-0.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 hover:text-emerald-800 rounded-md transition-all cursor-pointer flex items-center gap-0.5 font-bold text-[8px] shadow-3xs"
+            >
+              <Download className="h-2.5 w-2.5" />
+              <span className="hidden sm:inline">DOWNLOAD</span>
+            </button>
+            <button 
+              onClick={downloadPDF}
+              title="Download PDF file directly to your device"
+              className="px-1.5 py-0.5 bg-rose-50 hover:bg-rose-100 text-rose-700 hover:text-rose-800 rounded-md transition-all cursor-pointer flex items-center gap-0.5 font-bold text-[8px] shadow-3xs"
+            >
+              <Download className="h-2.5 w-2.5" />
+              <span className="hidden sm:inline">PDF</span>
+            </button>
+            <button 
+              onClick={handleSaveClick}
+              title="Save Excel with custom filename and location"
+              className="px-1.5 py-0.5 bg-blue-50 hover:bg-blue-100 text-blue-700 hover:text-blue-800 rounded-md transition-all cursor-pointer flex items-center gap-0.5 font-bold text-[8px] shadow-3xs"
+            >
+              <Save className="h-2.5 w-2.5" />
+              <span className="hidden sm:inline">SAVE AS</span>
+            </button>
+            <button 
+              onClick={handlePrint}
+              title="Print or Save as PDF"
+              className="px-1.5 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-700 hover:text-slate-800 rounded-md transition-all cursor-pointer flex items-center gap-0.5 font-bold text-[8px] shadow-3xs"
+            >
+              <Printer className="h-2.5 w-2.5" />
+              <span className="hidden sm:inline">PRINT</span>
+            </button>
           </div>
         </div>
       </div>
 
-      {/* Global Interactive Context Menu Popover Portal */}
-      {contextMenu?.visible && (
-        <div 
-          style={{ top: contextMenu.y, left: contextMenu.x }}
-          onClick={(e) => e.stopPropagation()}
-          className="fixed bg-white text-slate-800 rounded-lg shadow-2xl border border-slate-200 py-1.5 w-[240px] z-50 text-xs animate-scale-up-context"
-        >
-          <div className="px-3.5 py-1 text-[10px] font-black text-slate-400 uppercase tracking-wider border-b border-slate-100 pb-1.5 mb-1 flex justify-between items-center">
-            <span>Cell Actions (R{contextMenu.rowIndex + 1})</span>
-            {hasRangeSelection() && <span className="bg-emerald-100 text-emerald-800 px-1 rounded font-bold">Multi</span>}
-          </div>
+      {/* Standard A4 Printable Sheet */}
+      <div ref={sheetRef} className="sheet relative w-full max-w-[210mm] sm:w-[210mm] print:w-[210mm] min-h-[297mm] bg-white p-4 sm:p-[12mm] print:p-[12mm] shadow-lg box-border z-10 mx-auto">
+        {/* Aligned Watermark Logo inside the Document Sheet */}
+        <div className="absolute inset-0 pointer-events-none flex items-center justify-center overflow-hidden z-0 select-none">
+          <img 
+            src="https://i.ibb.co.com/3mNycQXx/1.png" 
+            alt="Watermark" 
+            referrerPolicy="no-referrer"
+            className="w-[70%] opacity-[0.045] object-contain select-none max-w-[500px]"
+            style={{ printColorAdjust: "exact" }}
+          />
+        </div>
 
-          {/* Section: Merge Toggles */}
+        <table className="print-outer-layout-table w-full border-none p-0 m-0 relative z-10">
+          <thead className="print:table-header-group">
+            <tr>
+              <td className="border-none p-0 m-0">
+                {/* Business Header with Details and Logo */}
+                <div className="business-header border-b-2 border-black pb-3 mb-4 flex flex-col sm:flex-row items-center justify-between gap-4 text-black text-left">
+                  {/* Left Side: Brand Logo and Title */}
+                  <div className="flex items-center gap-4">
+                    <div className="logo-container h-28 w-28 sm:h-32 sm:w-32 print:h-32 print:w-32 shrink-0 rounded-full border-2 border-slate-300 overflow-hidden bg-black flex items-center justify-center shadow-sm">
+                      <img
+                        src="https://i.ibb.co.com/gFBkpt8B/Chat-GPT-Image-Apr-23-2026-01-10-13-PM.png"
+                        alt="Comilla Traders Logo"
+                        referrerPolicy="no-referrer"
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                    <div>
+                      <h1 className="text-[22pt] font-black tracking-tight leading-none text-black">
+                        COMILLA TRADERS
+                      </h1>
+                      <p className="text-[9pt] font-extrabold text-slate-700 tracking-wider uppercase mt-1.5">
+                        Ship Chandler, Marine Supplier & General Merchant
+                      </p>
+                      <p className="text-[7.5pt] font-bold text-slate-500 uppercase tracking-widest mt-1">
+                        Mechanical & Electrical Marine Engineering Services
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Right Side: Contact Details */}
+                  <div className="contact-details text-right text-[7.5pt] text-slate-800 space-y-0.5 leading-tight sm:block hidden print:block">
+                    <p className="font-bold whitespace-nowrap">
+                      Office: <span className="font-medium whitespace-nowrap">Jubilee Road, Chattogram, Bangladesh</span>
+                    </p>
+                    <p className="font-bold whitespace-nowrap">
+                      Helplines: <span className="font-medium font-mono whitespace-nowrap">01819315746, 01712-900431</span>
+                    </p>
+                    <p className="font-bold whitespace-nowrap">
+                      Official Email: <span className="font-medium whitespace-nowrap">comillatraders@gmail.com</span>
+                    </p>
+                    <p className="font-bold text-[7pt] tracking-widest text-indigo-700 uppercase whitespace-nowrap">
+                      CHATTOGRAM &bull; BANGLADESH
+                    </p>
+                  </div>
+                  
+                  {/* Mobile Right Side */}
+                  <div className="text-center text-[8pt] text-slate-800 space-y-0.5 leading-tight sm:hidden print:hidden">
+                    <p>Jubilee Road, Chattogram &bull; Hotlines: 01819315746</p>
+                    <p>comillatraders@gmail.com</p>
+                  </div>
+                </div>
+              </td>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td className="border-none p-0 m-0">
+                {/* Big Letterhead / Document Title */}
+                <div className="doc-title text-center text-[15pt] font-black uppercase tracking-[8px] my-2">
+                  {docType === "invoice" ? "Invoice" : "Quotation"}
+                </div>
+
+                {/* Meta Details Grid */}
+                <div className="meta-grid grid grid-cols-1 sm:grid-cols-2 print:grid-cols-2 gap-4 text-left text-[9pt] mb-4">
+                  {/* Left Column: Client Details */}
+                  <div className="meta-box space-y-2 border border-black p-3 bg-slate-50/30 rounded-xs">
+                    <div>
+                      <label className="block text-[7.5pt] font-extrabold text-slate-700 uppercase tracking-wider mb-0.5">Messers:</label>
+                      <input 
+                        type="text" 
+                        value={messers}
+                        onChange={(e) => setMessers(e.target.value)}
+                        className="w-full border-b border-dotted border-slate-400 focus:border-black font-bold text-[9.5pt] outline-none bg-transparent py-0.5 no-print print:hidden"
+                      />
+                      <div className="hidden print:block font-bold text-[9.5pt] border-b border-dotted border-black min-h-[20px] py-0.5 break-words whitespace-pre-wrap leading-tight">
+                        {messers || " "}
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-[7.5pt] font-extrabold text-slate-700 uppercase tracking-wider mb-0.5">Address:</label>
+                      <textarea 
+                        rows={2}
+                        value={address}
+                        onChange={(e) => setAddress(e.target.value)}
+                        className="w-full border-b border-dotted border-slate-400 focus:border-black text-[9pt] outline-none bg-transparent resize-none leading-tight py-0.5 no-print print:hidden"
+                      />
+                      <div className="hidden print:block text-[9pt] border-b border-dotted border-black min-h-[40px] py-0.5 break-words whitespace-pre-wrap leading-tight">
+                        {address || " "}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Right Column: Invoice/Quotation Details */}
+                  <div className="meta-box meta-box-inner-grid grid grid-cols-2 gap-2 border border-black p-3 bg-slate-50/30 rounded-xs">
+                    {docType === "invoice" ? (
+                      <>
+                        <div className="meta-inner-field col-span-1">
+                          <label className="block text-[7.5pt] font-extrabold text-slate-700 uppercase tracking-wider mb-0.5">Invoice No.:</label>
+                          <input 
+                            type="text" 
+                            value={invoiceNo}
+                            onChange={(e) => setInvoiceNo(e.target.value)}
+                            className="w-full border-b border-dotted border-slate-400 focus:border-black font-mono text-[9pt] outline-none bg-transparent py-0.5"
+                          />
+                        </div>
+                        <div className="meta-inner-field col-span-1">
+                          <label className="block text-[7.5pt] font-extrabold text-slate-700 uppercase tracking-wider mb-0.5">Challan No.:</label>
+                          <input 
+                            type="text" 
+                            value={challanNo}
+                            onChange={(e) => setChallanNo(e.target.value)}
+                            className="w-full border-b border-dotted border-slate-400 focus:border-black font-mono text-[9pt] outline-none bg-transparent py-0.5"
+                          />
+                        </div>
+                        <div className="meta-inner-field col-span-1 relative">
+                          <label className="block text-[7.5pt] font-extrabold text-slate-700 uppercase tracking-wider mb-0.5">Date:</label>
+                          <div className="flex items-center gap-1">
+                            <input 
+                              type="text" 
+                              value={dateVal}
+                              onChange={(e) => setDateVal(e.target.value)}
+                              className="w-full border-b border-dotted border-slate-400 focus:border-black font-mono text-[9pt] outline-none bg-transparent py-0.5"
+                            />
+                            <button
+                              type="button"
+                              onClick={triggerDatePicker}
+                              className="no-print print:hidden p-0.5 hover:bg-slate-100 rounded text-slate-600 transition-colors cursor-pointer flex items-center justify-center"
+                              title="Select Date"
+                            >
+                              <Calendar className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                          <input
+                            ref={dateRef}
+                            type="date"
+                            onChange={handleDatePickerChange}
+                            className="absolute invisible w-0 h-0 opacity-0 pointer-events-none"
+                          />
+                        </div>
+                        <div className="meta-inner-field col-span-1">
+                          <label className="block text-[7.5pt] font-extrabold text-slate-700 uppercase tracking-wider mb-0.5">PO Number:</label>
+                          <input 
+                            type="text" 
+                            value={poNumber}
+                            onChange={(e) => setPoNumber(e.target.value)}
+                            className="w-full border-b border-dotted border-slate-400 focus:border-black font-mono text-[9pt] outline-none bg-transparent py-0.5"
+                          />
+                        </div>
+                        <div className="meta-inner-field col-span-2">
+                          <label className="block text-[7.5pt] font-extrabold text-slate-700 uppercase tracking-wider mb-0.5">Requisition No.:</label>
+                          <input 
+                            type="text" 
+                            value={requisitionNo}
+                            onChange={(e) => setRequisitionNo(e.target.value)}
+                            className="w-full border-b border-dotted border-slate-400 focus:border-black font-mono text-[9pt] outline-none bg-transparent py-0.5"
+                          />
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="meta-inner-field col-span-1">
+                          <label className="block text-[7.5pt] font-extrabold text-slate-700 uppercase tracking-wider mb-0.5">Challan No.:</label>
+                          <input 
+                            type="text" 
+                            value={challanNo}
+                            onChange={(e) => setChallanNo(e.target.value)}
+                            className="w-full border-b border-dotted border-slate-400 focus:border-black font-mono text-[9pt] outline-none bg-transparent py-0.5"
+                          />
+                        </div>
+                        <div className="meta-inner-field col-span-1 relative">
+                          <label className="block text-[7.5pt] font-extrabold text-slate-700 uppercase tracking-wider mb-0.5">Date:</label>
+                          <div className="flex items-center gap-1">
+                            <input 
+                              type="text" 
+                              value={dateVal}
+                              onChange={(e) => setDateVal(e.target.value)}
+                              className="w-full border-b border-dotted border-slate-400 focus:border-black font-mono text-[9pt] outline-none bg-transparent py-0.5"
+                            />
+                            <button
+                              type="button"
+                              onClick={triggerDatePicker}
+                              className="no-print print:hidden p-0.5 hover:bg-slate-100 rounded text-slate-600 transition-colors cursor-pointer flex items-center justify-center"
+                              title="Select Date"
+                            >
+                              <Calendar className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                          <input
+                            ref={dateRef}
+                            type="date"
+                            onChange={handleDatePickerChange}
+                            className="absolute invisible w-0 h-0 opacity-0 pointer-events-none"
+                          />
+                        </div>
+                        <div className="meta-inner-field col-span-2">
+                          <label className="block text-[7.5pt] font-extrabold text-slate-700 uppercase tracking-wider mb-0.5">Requisition No.:</label>
+                          <input 
+                            type="text" 
+                            value={requisitionNo}
+                            onChange={(e) => setRequisitionNo(e.target.value)}
+                            className="w-full border-b border-dotted border-slate-400 focus:border-black font-mono text-[9pt] outline-none bg-transparent py-0.5"
+                          />
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+
+        {/* Compact Table */}
+        <div className="w-full overflow-x-auto no-scrollbar -mx-4 px-4 sm:mx-0 sm:px-0">
+          <table className="main-table w-[650px] sm:w-full border-collapse border-[1.5px] border-black table-fixed text-[9pt]">
+          <thead>
+            <tr className="bg-slate-50 text-[8pt]">
+              <th className="w-[4%] border border-black py-1 text-center font-bold">SL</th>
+              <th className="w-[44%] border border-black py-1 text-left px-2 font-bold">Description</th>
+              <th className="w-[8%] border border-black py-1 text-center font-bold">Qty</th>
+              <th className="w-[22%] border border-black py-1 text-center font-bold">Unit</th>
+              <th className="w-[10%] border border-black py-1 text-center font-bold">Price</th>
+              <th className="w-[12%] border border-black py-1 text-center font-bold">Amount</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row, idx) => (
+              <tr 
+                key={idx} 
+                className={`group hover:bg-slate-50/50 transition-colors ${
+                  idx === safeSelectedRowIndex 
+                    ? "bg-emerald-50/10" 
+                    : ""
+                }`}
+              >
+                {GRID_COLUMNS.map((colIndex) => {
+                  const { region, isAnchor } = getMergeInfo(idx, colIndex);
+
+                  // Covered (non-anchor) cell of a merged region: render nothing, the
+                  // anchor cell's colSpan/rowSpan already occupies this grid position.
+                  if (region && !isAnchor) {
+                    return null;
+                  }
+
+                  const colSpan = region ? region.endCol - region.startCol + 1 : 1;
+                  const rowSpan = region ? region.endRow - region.startRow + 1 : 1;
+
+                  // --- SL column ---
+                  if (colIndex === -1) {
+                    return (
+                      <td
+                        key={colIndex}
+                        colSpan={colSpan}
+                        rowSpan={rowSpan}
+                        onMouseDown={(e) => handleCellMouseDown(e, idx, -1)}
+                        onMouseEnter={() => handleCellMouseEnter(idx, -1)}
+                        onMouseUp={(e) => handleCellMouseUp(e, idx, -1)}
+                        onClick={() => handleCellClick(idx, -1)}
+                        onContextMenu={(e) => handleCellContextMenu(e, idx, -1)}
+                        className={getCellClassName(idx, -1, `border border-black text-center font-mono text-[8.5pt] align-top py-1 transition-all cursor-pointer select-none ${
+                          idx === safeSelectedRowIndex
+                            ? "bg-emerald-50/30 text-slate-800"
+                            : "bg-slate-50/30 text-slate-800"
+                        }`)}
+                      >
+                        {idx + 1}
+                      </td>
+                    );
+                  }
+
+                  // --- Description column ---
+                  if (colIndex === 0) {
+                    return (
+                      <td
+                        key={colIndex}
+                        colSpan={colSpan}
+                        rowSpan={rowSpan}
+                        onMouseDown={(e) => handleCellMouseDown(e, idx, 0)}
+                        onMouseEnter={() => handleCellMouseEnter(idx, 0)}
+                        onMouseUp={(e) => handleCellMouseUp(e, idx, 0)}
+                        onClick={() => handleCellClick(idx, 0)}
+                        onContextMenu={(e) => handleCellContextMenu(e, idx, 0)}
+                        className={getCellClassName(idx, 0, `border border-black text-left px-1.5 text-[8.5pt] align-top py-1 break-all whitespace-normal transition-all cursor-text ${region ? "bg-amber-50/10" : ""}`)}
+                      >
+                        <textarea
+                          value={row.desc}
+                          onFocus={() => {
+                            setSelectedRowIndex(idx);
+                            setSelectedCell({ rowIndex: idx, colIndex: 0 });
+                          }}
+                          onChange={(e) => {
+                            handleRowChange(idx, "desc", e.target.value);
+                            e.target.style.height = "auto";
+                            e.target.style.height = `${e.target.scrollHeight}px`;
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" && !e.shiftKey) {
+                              e.preventDefault();
+                              const targetElement = document.querySelector(
+                                `[data-row="${idx + 1}"][data-col="0"]`
+                              ) as HTMLElement | null;
+                              if (targetElement) {
+                                targetElement.focus();
+                              }
+                            } else {
+                              handleKeyDown(e, idx, 0);
+                            }
+                          }}
+                          onPaste={(e) => handlePaste(e, idx, 0)}
+                          data-row={idx}
+                          data-col={0}
+                          rows={1}
+                          style={{ height: "auto", resize: "none" }}
+                          placeholder={region ? "Merged Cell(s) - Excel style" : undefined}
+                          className={`w-full text-left border-none outline-none bg-transparent px-0 text-slate-800 text-[8.5pt] leading-tight block overflow-hidden py-0.5 whitespace-pre-wrap break-all no-print print:hidden ${region ? "font-extrabold text-slate-900 placeholder:text-slate-400 placeholder:italic" : ""}`}
+                        />
+                        <div className="hidden print:block whitespace-pre-wrap break-words text-slate-900 leading-tight py-0.5 text-[8.5pt]">
+                          {row.desc || " "}
+                        </div>
+                      </td>
+                    );
+                  }
+
+                  // --- Qty column ---
+                  if (colIndex === 1) {
+                    return (
+                      <td
+                        key={colIndex}
+                        colSpan={colSpan}
+                        rowSpan={rowSpan}
+                        onMouseDown={(e) => handleCellMouseDown(e, idx, 1)}
+                        onMouseEnter={() => handleCellMouseEnter(idx, 1)}
+                        onMouseUp={(e) => handleCellMouseUp(e, idx, 1)}
+                        onClick={() => handleCellClick(idx, 1)}
+                        onContextMenu={(e) => handleCellContextMenu(e, idx, 1)}
+                        className={getCellClassName(idx, 1, "border border-black text-center font-mono text-[9pt] align-top py-1 transition-all cursor-text")}
+                      >
+                        <textarea
+                          value={row.qty}
+                          onFocus={() => {
+                            setSelectedRowIndex(idx);
+                            setSelectedCell({ rowIndex: idx, colIndex: 1 });
+                          }}
+                          onChange={(e) => {
+                            handleRowChange(idx, "qty", e.target.value);
+                            e.target.style.height = "auto";
+                            e.target.style.height = `${e.target.scrollHeight}px`;
+                          }}
+                          onKeyDown={(e) => handleKeyDown(e, idx, 1)}
+                          onPaste={(e) => handlePaste(e, idx, 1)}
+                          data-row={idx}
+                          data-col={1}
+                          rows={1}
+                          style={{ height: "auto", resize: "none" }}
+                          className={`w-full text-center border-none outline-none bg-transparent px-0 font-mono text-slate-800 align-top overflow-hidden py-0.5 whitespace-pre-wrap break-all no-print print:hidden ${
+                            row.qty.length > 6 ? "text-[7.5pt]" : "text-[9pt]"
+                          }`}
+                        />
+                        <div className="hidden print:block whitespace-pre-wrap break-words text-center font-mono text-slate-900 py-0.5 text-[9pt]">
+                          {row.qty || " "}
+                        </div>
+                      </td>
+                    );
+                  }
+
+                  // --- Unit column ---
+                  if (colIndex === 2) {
+                    return (
+                      <td
+                        key={colIndex}
+                        colSpan={colSpan}
+                        rowSpan={rowSpan}
+                        onMouseDown={(e) => handleCellMouseDown(e, idx, 2)}
+                        onMouseEnter={() => handleCellMouseEnter(idx, 2)}
+                        onMouseUp={(e) => handleCellMouseUp(e, idx, 2)}
+                        onClick={() => handleCellClick(idx, 2)}
+                        onContextMenu={(e) => handleCellContextMenu(e, idx, 2)}
+                        className={getCellClassName(idx, 2, "border border-black text-center text-[9pt] align-top py-1 transition-all cursor-text")}
+                      >
+                        <textarea
+                          value={row.unit}
+                          onFocus={() => {
+                            setSelectedRowIndex(idx);
+                            setSelectedCell({ rowIndex: idx, colIndex: 2 });
+                          }}
+                          onChange={(e) => {
+                            handleRowChange(idx, "unit", e.target.value);
+                            e.target.style.height = "auto";
+                            e.target.style.height = `${e.target.scrollHeight}px`;
+                          }}
+                          onKeyDown={(e) => handleKeyDown(e, idx, 2)}
+                          onPaste={(e) => handlePaste(e, idx, 2)}
+                          data-row={idx}
+                          data-col={2}
+                          rows={1}
+                          style={{ height: "auto", resize: "none" }}
+                          className={`w-full text-center border-none outline-none bg-transparent px-0 text-slate-800 align-top overflow-hidden py-0.5 whitespace-pre-wrap break-all no-print print:hidden ${
+                            row.unit.length > 6 ? "text-[7.5pt]" : "text-[9pt]"
+                          }`}
+                        />
+                        <div className="hidden print:block whitespace-pre-wrap break-words text-center text-slate-900 py-0.5 text-[9pt]">
+                          {row.unit || " "}
+                        </div>
+                      </td>
+                    );
+                  }
+
+                  // --- Price column ---
+                  if (colIndex === 3) {
+                    return (
+                      <td
+                        key={colIndex}
+                        colSpan={colSpan}
+                        rowSpan={rowSpan}
+                        onMouseDown={(e) => handleCellMouseDown(e, idx, 3)}
+                        onMouseEnter={() => handleCellMouseEnter(idx, 3)}
+                        onMouseUp={(e) => handleCellMouseUp(e, idx, 3)}
+                        onClick={() => handleCellClick(idx, 3)}
+                        onContextMenu={(e) => handleCellContextMenu(e, idx, 3)}
+                        className={getCellClassName(idx, 3, "border border-black text-center font-mono text-[9pt] align-top py-1 transition-all cursor-text")}
+                      >
+                        <textarea
+                          value={row.price}
+                          onFocus={() => {
+                            setSelectedRowIndex(idx);
+                            setSelectedCell({ rowIndex: idx, colIndex: 3 });
+                          }}
+                          onChange={(e) => {
+                            handleRowChange(idx, "price", e.target.value);
+                            e.target.style.height = "auto";
+                            e.target.style.height = `${e.target.scrollHeight}px`;
+                          }}
+                          onKeyDown={(e) => handleKeyDown(e, idx, 3)}
+                          onPaste={(e) => handlePaste(e, idx, 3)}
+                          data-row={idx}
+                          data-col={3}
+                          rows={1}
+                          style={{ height: "auto", resize: "none" }}
+                          className={`w-full text-center border-none outline-none bg-transparent px-0 font-mono text-slate-800 align-top overflow-hidden py-0.5 whitespace-pre-wrap break-all no-print print:hidden ${
+                            row.price.length > 8 ? "text-[7.5pt]" : "text-[9pt]"
+                          }`}
+                        />
+                        <div className="hidden print:block whitespace-pre-wrap break-words text-center font-mono text-slate-900 py-0.5 text-[9pt]">
+                          {row.price || " "}
+                        </div>
+                      </td>
+                    );
+                  }
+
+                  // --- Amount column (colIndex === 4) ---
+                  return (
+                    <td
+                      key={colIndex}
+                      colSpan={colSpan}
+                      rowSpan={rowSpan}
+                      onMouseDown={(e) => handleCellMouseDown(e, idx, 4)}
+                      onMouseEnter={() => handleCellMouseEnter(idx, 4)}
+                      onMouseUp={(e) => handleCellMouseUp(e, idx, 4)}
+                      onClick={() => handleCellClick(idx, 4)}
+                      onContextMenu={(e) => handleCellContextMenu(e, idx, 4)}
+                      className={getCellClassName(idx, 4, "border border-black text-right pr-2 font-mono text-[9pt] font-semibold text-slate-800 align-top py-1 transition-all cursor-pointer")}
+                    >
+                      <div className={`whitespace-normal break-all leading-tight ${
+                        row.amount > 0 && row.amount.toLocaleString("en-US", { minimumFractionDigits: 2 }).length > 12
+                          ? "text-[7.5pt]"
+                          : "text-[9pt]"
+                      }`}>
+                        {row.amount > 0 ? row.amount.toLocaleString("en-US", { minimumFractionDigits: 2 }) : "0.00"}
+                      </div>
+                    </td>
+                  );
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        </div>
+
+        {/* Quotation Footer & Closing Box */}
+        <div className="closing-wrap mt-2.5">
+          <table className="closing-row w-full border-collapse border-2 border-black table-fixed mt-2.5 bg-white text-black z-10 relative">
+            <tbody>
+              {docType === "quotation" ? (
+                <tr className="align-stretch">
+                  {/* Amount in Words (Compact, on the left) */}
+                  <td className="amount-words-container w-1/2 border-r-2 border-black p-2 bg-slate-50/50 text-left align-middle">
+                    <span className="font-extrabold text-[7pt] text-slate-700 uppercase tracking-wider block mb-0.5">
+                      Amount in Words:
+                    </span>
+                    <span className="text-[8.5pt] font-mono italic text-black font-black uppercase leading-tight">
+                      {numberToWords(calculatedGrandTotal)}
+                    </span>
+                  </td>
+                  {/* Total Amount (Right side) */}
+                  <td className="w-1/2 p-0 align-stretch">
+                    <div className="flex flex-row items-stretch h-full min-h-[40px] w-full">
+                      <div className="total-lbl bg-slate-50 w-[170px] shrink-0 pr-2 text-right border-r-2 border-black text-[9pt] font-bold uppercase flex items-center justify-end">
+                        TOTAL
+                      </div>
+                      <div className="total-val flex-grow text-right pr-4 text-[10pt] font-mono font-black flex items-center justify-end px-2 py-1 leading-tight">
+                        {grandTotal.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                      </div>
+                    </div>
+                  </td>
+                </tr>
+              ) : (
+                <>
+                  {/* Row 1: Sub Total */}
+                  <tr className="align-stretch">
+                    {/* Amount in Words (rowspan 4 on the left half) */}
+                    <td rowSpan={4} className="amount-words-container w-1/2 border-r-2 border-black p-3 bg-slate-50/50 text-left align-middle">
+                      <span className="font-extrabold text-[7.5pt] text-slate-700 uppercase tracking-wider block mb-1">
+                        Amount in Words:
+                      </span>
+                      <span className="text-[9.5pt] font-mono italic text-black font-black uppercase leading-tight">
+                        {numberToWords(calculatedGrandTotal)}
+                      </span>
+                    </td>
+                    {/* Sub Total Value */}
+                    <td className="w-1/2 p-0 border-b border-black align-stretch">
+                      <div className="flex flex-row items-stretch h-full w-full">
+                        <div className="total-lbl bg-slate-50 w-[170px] shrink-0 pr-2 py-1.5 text-right border-r border-black font-bold uppercase text-[8pt] flex items-center justify-end">
+                          Sub Total
+                        </div>
+                        <div className="total-val flex-grow text-right pr-3 font-mono font-bold py-1.5 flex items-center justify-end">
+                          {grandTotal.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+
+                  {/* Row 2: VAT */}
+                  <tr className="align-stretch">
+                    <td className="p-0 border-b border-black align-stretch">
+                      <div className="flex flex-row items-stretch h-full w-full">
+                        <div className="total-lbl bg-slate-50 w-[170px] shrink-0 pr-2 py-1.5 text-right border-r border-black font-bold uppercase text-[8pt] flex items-center justify-end gap-1">
+                          <span>VAT</span>
+                          <span className="no-print print:hidden flex items-center bg-slate-200 border border-slate-300 rounded px-1 text-[8px] font-mono font-bold text-slate-700">
+                            <input
+                              type="number"
+                              value={vatPercent}
+                              onChange={(e) => setVatPercent(Math.max(0, parseFloat(e.target.value) || 0))}
+                              className="w-8 bg-transparent text-center focus:outline-none border-none p-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none animate-none"
+                            />
+                            %
+                          </span>
+                          <span className="hidden print:inline font-mono">({vatPercent}%)</span>
+                        </div>
+                        <div className="total-val flex-grow text-right pr-3 font-mono font-bold py-1.5 flex items-center justify-end">
+                          {((grandTotal * vatPercent) / 100).toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+
+                  {/* Row 3: Transportation charges */}
+                  <tr className="align-stretch">
+                    <td className="p-0 border-b border-black align-stretch">
+                      <div className="flex flex-row items-stretch h-full w-full">
+                        <div className="total-lbl bg-slate-50 w-[170px] shrink-0 pr-2 py-1.5 text-right border-r border-black font-bold uppercase text-[8pt] flex items-center justify-end gap-1">
+                          <span>Transportation</span>
+                          <span className="no-print print:hidden flex items-center bg-slate-200 border border-slate-300 rounded px-1 text-[8px] font-mono font-bold text-slate-700">
+                            <input
+                              type="number"
+                              value={transportation === 0 ? "" : transportation}
+                              placeholder="0"
+                              onChange={(e) => setTransportation(Math.max(0, parseFloat(e.target.value) || 0))}
+                              className="w-12 bg-transparent text-center focus:outline-none border-none p-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none animate-none"
+                            />
+                          </span>
+                        </div>
+                        <div className="total-val flex-grow text-right pr-3 font-mono font-bold py-1.5 flex items-center justify-end">
+                          {transportation.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+
+                  {/* Row 4: Grand Total */}
+                  <tr className="align-stretch">
+                    <td className="p-0 bg-slate-100 align-stretch">
+                      <div className="flex flex-row items-stretch h-full w-full">
+                        <div className="bg-slate-200 w-[170px] shrink-0 pr-2 py-2 text-right border-r border-black font-extrabold uppercase text-[8.5pt] flex items-center justify-end">
+                          Grand Total
+                        </div>
+                        <div className="total-val flex-grow text-right pr-3 font-mono font-black py-2 text-[9.5pt] flex items-center justify-end">
+                          {(grandTotal + (grandTotal * vatPercent) / 100 + transportation).toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                </>
+              )}
+            </tbody>
+          </table>
+
+          <div className="sig-section mt-8 flex flex-row justify-between gap-6 sm:gap-10">
+            <div className="sig-box w-full sm:w-[220px] print:w-[220px] text-center flex flex-col justify-end h-[90px]">
+              <div className="sig-line border-t-[1.5px] border-black pt-1.5 text-[9pt] font-bold">
+                Receiver's Signature
+              </div>
+            </div>
+            <div className="sig-box w-full sm:w-[220px] print:w-[220px] text-center flex flex-col justify-between h-[90px] relative">
+              <div className="sig-title text-[9pt] font-bold text-black">For Comilla Traders</div>
+              
+              {/* Centered Transparent Stamp Image overlaying the signature line */}
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10 select-none pb-1">
+                <img 
+                  src="https://i.ibb.co.com/jZswrtn6/image-4-removebg-preview.png"
+                  alt="Comilla Traders Stamp"
+                  referrerPolicy="no-referrer"
+                  className="w-[110px] h-[110px] object-contain select-none"
+                  style={{ printColorAdjust: "exact" }}
+                />
+              </div>
+
+              <div className="sig-line border-t-[1.5px] border-black pt-1.5 text-[9pt] font-bold relative z-20">
+                Authorized Signature
+              </div>
+            </div>
+          </div>
+        </div>
+
+              </td>
+            </tr>
+          </tbody>
+        </table>
+
+      </div>
+
+      {/* Saved Documents Panel - Hidden while printing */}
+      <div className="saved-docs-panel no-print print:hidden w-full max-w-[210mm] sm:w-[210mm] mt-6 bg-white rounded-xl border border-slate-200 shadow-md overflow-hidden p-6 text-black">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-4 mb-5">
+          <div className="flex items-start gap-3">
+            <div className="p-2 bg-indigo-50 text-indigo-700 rounded-lg shrink-0">
+              <History className="h-5 w-5" />
+            </div>
+            <div>
+              <h2 className="text-base font-bold text-slate-900 tracking-tight flex items-center gap-2">
+                <span>Online Saved Documents</span>
+                <span className="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
+                  Online DB ({savedDocs.length})
+                </span>
+              </h2>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Saved invoices & quotations are stored securely in your online Cloud database.
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={startNewDoc}
+            className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs py-2 px-4 rounded-lg shadow-sm hover:shadow transition-all flex items-center gap-1.5 cursor-pointer self-start sm:self-center"
+          >
+            <Plus className="h-4 w-4" />
+            <span>CREATE NEW SHEET</span>
+          </button>
+        </div>
+
+        {/* Saved List */}
+        {savedDocs.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-10 px-4 text-center border-2 border-dashed border-slate-200 rounded-xl bg-slate-50/50">
+            <FileText className="h-10 w-10 text-slate-300 stroke-[1.5]" />
+            <h3 className="font-bold text-xs text-slate-700 uppercase tracking-wider mt-3">No Saved Documents Yet</h3>
+            <p className="text-xs text-slate-500 mt-1 max-w-sm">
+              Use the <strong className="text-indigo-600">"SAVE ONLINE"</strong> button in the toolbar above or turn on <strong className="text-emerald-600">"Auto-Save"</strong> to store drafts here.
+            </p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto rounded-lg border border-slate-200">
+            <table className="w-full text-left text-xs text-slate-600 border-collapse">
+              <thead className="bg-slate-50 text-[10px] font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200">
+                <tr>
+                  <th className="px-4 py-3 font-semibold">Document Name</th>
+                  <th className="px-4 py-3 font-semibold text-center w-24">Type</th>
+                  <th className="px-4 py-3 font-semibold">Date</th>
+                  <th className="px-4 py-3 font-semibold">Last Updated</th>
+                  <th className="px-4 py-3 font-semibold text-right pr-6">Grand Total</th>
+                  <th className="px-4 py-3 text-right pr-4 w-48">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 bg-white">
+                {savedDocs.map((doc) => {
+                  const isActive = currentDocId === doc.id;
+                  const docRowsTotal = doc.rows.reduce((sum: number, r: any) => sum + r.amount, 0);
+                  const docGrandTotal = doc.docType === "quotation" 
+                    ? docRowsTotal 
+                    : (docRowsTotal + (docRowsTotal * doc.vatPercent) / 100 + doc.transportation);
+                  
+                  return (
+                    <tr 
+                      key={doc.id} 
+                      onClick={() => loadSavedDoc(doc)}
+                      className={`hover:bg-slate-50/80 transition-colors cursor-pointer group ${
+                        isActive ? "bg-indigo-50/30 hover:bg-indigo-50/40" : ""
+                      }`}
+                    >
+                      <td className="px-4 py-3 font-medium text-slate-800">
+                        <div className="flex items-center gap-2">
+                          {isActive && (
+                            <span className="inline-flex items-center bg-indigo-100 text-indigo-800 text-[9px] font-bold px-1.5 py-0.2 rounded-sm tracking-wide">
+                              EDITING
+                            </span>
+                          )}
+                          <span className="truncate max-w-[250px] sm:max-w-[350px] block" title={doc.name}>
+                            {doc.name}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-extrabold tracking-wider uppercase border ${
+                          doc.docType === "quotation"
+                            ? "bg-blue-50 border-blue-200 text-blue-700"
+                            : "bg-slate-100 border-slate-200 text-slate-800"
+                        }`}>
+                          {doc.docType}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-slate-500 font-mono">
+                        {doc.dateVal}
+                      </td>
+                      <td className="px-4 py-3 text-slate-400 font-mono">
+                        {new Date(doc.updatedAt).toLocaleDateString()} {new Date(doc.updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </td>
+                      <td className="px-4 py-3 text-right pr-6 font-mono font-bold text-slate-900">
+                        {docGrandTotal.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                      </td>
+                      <td className="px-4 py-3 text-right pr-4 space-x-1.5 no-print" onClick={(e) => e.stopPropagation()}>
+                        <button
+                          type="button"
+                          onClick={(e) => renameSavedDoc(doc.id, e)}
+                          className="text-[10px] font-bold text-slate-500 hover:text-slate-800 hover:bg-slate-100 px-2.5 py-1 rounded transition-colors cursor-pointer"
+                          title="Rename Document"
+                        >
+                          Rename
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => deleteSavedDoc(doc.id, e)}
+                          className="text-[10px] font-bold text-rose-500 hover:text-rose-700 hover:bg-rose-50 px-2.5 py-1 rounded transition-colors cursor-pointer"
+                          title="Delete Document"
+                        >
+                          Delete
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* Save As Excel Dialog Modal */}
+      {isSaveModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-50 p-4 no-print print:hidden">
+          <div className="bg-white rounded-2xl shadow-xl border border-slate-200 max-w-md w-full overflow-hidden animate-in fade-in zoom-in duration-200 text-[#000]">
+            {/* Header */}
+            <div className="bg-slate-950 px-6 py-4 text-white flex items-center gap-2.5">
+              <Download className="h-5 w-5 text-emerald-400" />
+              <div>
+                <h3 className="font-bold text-sm tracking-wide">Save As Excel Spreadsheet</h3>
+                <p className="text-[10px] text-slate-400">Rename your maritime quotation worksheet</p>
+              </div>
+            </div>
+            
+            {/* Body */}
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">
+                  Filename
+                </label>
+                <div className="flex rounded-lg border border-slate-300 focus-within:border-indigo-500 shadow-sm overflow-hidden bg-slate-50">
+                  <input
+                    type="text"
+                    value={saveFilename}
+                    onChange={(e) => setSaveFilename(e.target.value)}
+                    placeholder="Enter filename..."
+                    className="flex-1 bg-transparent px-3 py-2 text-sm text-slate-800 outline-none font-sans"
+                    autoFocus
+                  />
+                  <span className="bg-slate-100 border-l border-slate-200 px-3 py-2 text-xs font-mono font-bold text-slate-500 flex items-center">
+                    .xlsx
+                  </span>
+                </div>
+              </div>
+
+              {/* Folder Location Selection */}
+              <div className="space-y-2 pt-1">
+                <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                  Save Location / Folder
+                </label>
+                <div className="space-y-2">
+                  {/* Default Download */}
+                  <label className={`flex items-start gap-3 p-2.5 rounded-lg border cursor-pointer transition-all ${
+                    saveMethod === "default" 
+                      ? "bg-slate-50 border-slate-900 shadow-xs" 
+                      : "bg-white border-slate-200 hover:bg-slate-50/50"
+                  }`}>
+                    <input
+                      type="radio"
+                      name="saveLocation"
+                      value="default"
+                      checked={saveMethod === "default"}
+                      onChange={() => setSaveMethod("default")}
+                      className="mt-0.5 text-indigo-600 focus:ring-indigo-500"
+                    />
+                    <div>
+                      <p className="text-xs font-bold text-slate-800">Default Downloads Folder</p>
+                      <p className="text-[10px] text-slate-500">
+                        Saves instantly to your browser's default downloads location.
+                      </p>
+                    </div>
+                  </label>
+
+                  {/* Custom Folder/Location Selection */}
+                  <label className={`flex items-start gap-3 p-2.5 rounded-lg border cursor-pointer transition-all ${
+                    saveMethod === "custom" 
+                      ? "bg-slate-50 border-slate-900 shadow-xs" 
+                      : "bg-white border-slate-200 hover:bg-slate-50/50"
+                  }`}>
+                    <input
+                      type="radio"
+                      name="saveLocation"
+                      value="custom"
+                      checked={saveMethod === "custom"}
+                      onChange={() => setSaveMethod("custom")}
+                      className="mt-0.5 text-indigo-600 focus:ring-indigo-500"
+                    />
+                    <div>
+                      <p className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                        <span>Select Folder on My Device</span>
+                        <span className="bg-emerald-100 text-emerald-800 text-[8px] font-bold px-1.5 py-0.2 rounded-full uppercase tracking-wider">
+                          Interactive
+                        </span>
+                      </p>
+                      <p className="text-[10px] text-slate-500">
+                        Opens a system folder dialog allowing you to save the file in any directory.
+                      </p>
+                    </div>
+                  </label>
+                </div>
+
+                {/* Compatibility notice */}
+                {saveMethod === "custom" && !("showSaveFilePicker" in window) && (
+                  <div className="text-[10px] text-amber-700 bg-amber-50 border border-amber-200 p-2.5 rounded-lg leading-snug">
+                    ⚠️ Your browser doesn't fully support the native folder/file system picker API. It will automatically fallback to standard download.
+                  </div>
+                )}
+              </div>
+              
+              <div className="text-[11px] text-slate-500 leading-relaxed bg-slate-50 p-3 rounded-lg border border-slate-100 flex gap-2">
+                <span className="text-emerald-600 font-bold">✓</span>
+                <span>The file will contain all marine items, descriptions, quantities, and correct price calculations.</span>
+              </div>
+            </div>
+
+            {/* Footer Actions */}
+            <div className="bg-slate-50 px-6 py-4 border-t border-slate-200 flex justify-end gap-2.5">
+              <button
+                type="button"
+                onClick={() => setIsSaveModalOpen(false)}
+                className="px-4 py-2 text-xs font-bold text-slate-600 hover:text-slate-800 bg-white border border-slate-300 hover:border-slate-400 rounded-lg transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={confirmSaveExcel}
+                className="px-5 py-2 text-xs font-bold text-white bg-[#059669] hover:bg-[#047857] rounded-lg transition-colors shadow hover:shadow-md cursor-pointer"
+              >
+                Save File
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Excel Style Custom Context Menu */}
+      {contextMenu && contextMenu.visible && (
+        <div 
+          className="fixed bg-white border border-slate-200 rounded-lg shadow-xl py-1.5 w-64 z-[9999] select-none text-xs font-sans text-slate-700 animate-in fade-in zoom-in-95 duration-100"
+          style={{ 
+            top: `${contextMenu.y}px`, 
+            left: `${contextMenu.x}px`,
+          }}
+          onClick={(e) => e.stopPropagation()}
+          onContextMenu={(e) => e.preventDefault()}
+        >
+          {/* Section: Clear Selected Cell */}
+          {contextMenu.colIndex !== undefined && contextMenu.colIndex >= 0 && contextMenu.colIndex <= 3 && (
+            <>
+              <button 
+                onClick={() => {
+                  clearSpecificCell(contextMenu.rowIndex, contextMenu.colIndex!);
+                  setContextMenu(null);
+                }}
+                className="w-full text-left px-3.5 py-1.5 hover:bg-slate-100 flex items-center gap-2.5 font-bold text-slate-900"
+              >
+                <RefreshCw className="h-3.5 w-3.5 text-emerald-600" />
+                <span>
+                  Clear Cell (
+                  {contextMenu.colIndex === 0 ? "Description" : 
+                   contextMenu.colIndex === 1 ? "Qty" : 
+                   contextMenu.colIndex === 2 ? "Unit" : 
+                   contextMenu.colIndex === 3 ? "Price" : ""}
+                  )
+                </span>
+              </button>
+              <div className="my-1 border-t border-slate-100"></div>
+            </>
+          )}
+
+          {/* Section: Merge/Unmerge — acts on the exact drag-selected cell range (mergedRegions),
+              not the whole row. If only a single cell is selected, right-click there after
+              dragging across multiple cells first to enable a real merge. */}
           <button 
             onClick={() => {
               toggleMergeSelectedRangeV2();
               setContextMenu(null);
             }}
-            className="w-full text-left px-3.5 py-1.5 hover:bg-slate-100 flex items-center gap-2.5 font-bold text-slate-700"
+            disabled={!hasRangeSelection() && !getMergeRegionAt(contextMenu.rowIndex, contextMenu.colIndex)}
+            className="w-full text-left px-3.5 py-1.5 hover:bg-slate-100 disabled:opacity-40 disabled:hover:bg-transparent flex items-center justify-between font-bold"
           >
-            <Heading className="h-3.5 w-3.5 text-slate-500" />
-            <span>Merge / Unmerge Selection</span>
+            <div className="flex items-center gap-2.5">
+              <Heading className="h-3.5 w-3.5 text-emerald-600" />
+              <span>
+                {getMergeRegionAt(contextMenu.rowIndex, contextMenu.colIndex)
+                  ? "Unmerge Cells"
+                  : "Merge Selected Cells"}
+              </span>
+            </div>
+            <span className="text-[9px] text-slate-400 font-mono">⌘M</span>
           </button>
-          
+          {!hasRangeSelection() && !getMergeRegionAt(contextMenu.rowIndex, contextMenu.colIndex) && (
+            <div className="px-3.5 pb-1.5 -mt-0.5 text-[9.5px] text-slate-400 leading-snug">
+              Drag across multiple cells first, then right-click to merge them.
+            </div>
+          )}
+
           <div className="my-1 border-t border-slate-100"></div>
 
-          {/* Section: Row Manipulation shifts */}
+          {/* Section: Row insertion */}
           <button 
             onClick={() => {
               insertRow(contextMenu.rowIndex, 'above');
@@ -1606,7 +2758,7 @@ export default function QuotationBuilder() {
             }}
             className="w-full text-left px-3.5 py-1.5 hover:bg-slate-100 flex items-center gap-2.5 font-bold"
           >
-            <Plus className="h-3.5 w-3.5 text-slate-500" />
+            <Plus className="h-3.5 w-3.5 text-blue-600" />
             <span>Insert Row Above</span>
           </button>
           <button 
@@ -1616,12 +2768,13 @@ export default function QuotationBuilder() {
             }}
             className="w-full text-left px-3.5 py-1.5 hover:bg-slate-100 flex items-center gap-2.5 font-bold"
           >
-            <Plus className="h-3.5 w-3.5 text-slate-500" />
+            <Plus className="h-3.5 w-3.5 text-blue-600" />
             <span>Insert Row Below</span>
           </button>
 
           <div className="my-1 border-t border-slate-100"></div>
 
+          {/* Section: Move rows */}
           <button 
             onClick={() => {
               if (contextMenu.rowIndex > 0) {
@@ -1667,13 +2820,15 @@ export default function QuotationBuilder() {
               deleteSpecificRow(contextMenu.rowIndex);
               setContextMenu(null);
             }}
-            className="w-full text-left px-3.5 py-1.5 hover:bg-rose-50 text-rose-600 hover:text-rose-700 flex items-center gap-2.5 font-bold"
+            className="w-full text-left px-3.5 py-1.5 hover:bg-rose-50 text-rose-600 hover:text-rose-700 flex items-center gap-2.5 font-bold border-t border-rose-50 mt-1"
           >
-            <Trash2 className="h-3.5 w-3.5 text-rose-400" />
-            <span>Delete Entire Row</span>
+            <Trash2 className="h-3.5 w-3.5 text-rose-500" />
+            <span>Delete Row</span>
           </button>
         </div>
       )}
+
     </div>
   );
-}
+}</FILE>
+```
