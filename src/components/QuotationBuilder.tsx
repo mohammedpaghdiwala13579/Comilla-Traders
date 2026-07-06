@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import * as XLSX from "xlsx";
-import { Download, Printer, Calendar, Save, Trash2, Plus, History, Check, RefreshCw, FileText } from "lucide-react";
+import { Download, Printer, Calendar, Save, Trash2, Plus, History, Check, RefreshCw, FileText, Copy, FilePlus } from "lucide-react";
 import { db } from "../lib/firebase";
 import { collection, doc, setDoc, deleteDoc, onSnapshot, query, orderBy } from "firebase/firestore";
 
@@ -290,8 +290,8 @@ export default function QuotationBuilder() {
   };
 
   // Delete a saved sheet from Firestore
-  const deleteSavedDoc = async (id: string, e: React.MouseEvent) => {
-    e.stopPropagation();
+  const deleteSavedDoc = async (id: string, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
     if (window.confirm("Are you sure you want to delete this saved document from the online database?")) {
       try {
         await deleteDoc(doc(db, "documents", id));
@@ -328,6 +328,52 @@ export default function QuotationBuilder() {
   const startNewDoc = () => {
     if (window.confirm("Start a new document? Unsaved changes on your active sheet will be overwritten.")) {
       resetSheetFields();
+    }
+  };
+
+  // Duplicate the current sheet and save it as a new online document
+  const duplicateCurrentDoc = async () => {
+    const defaultName = `Copy of ${messers ? messers.trim() : "Quotation"} (${dateVal})`;
+    const docName = window.prompt("Enter a name for the duplicated copy:", defaultName);
+    if (!docName || docName.trim() === "") return;
+
+    setSaveStatus("saving");
+    try {
+      const newId = `doc_${Date.now()}`;
+      const docPayload = {
+        id: newId,
+        name: docName.trim(),
+        docType,
+        dateVal,
+        messers,
+        address,
+        invoiceNo: invoiceNo || "",
+        challanNo: challanNo || "",
+        requisitionNo: requisitionNo || "",
+        poNumber: poNumber || "",
+        vatPercent,
+        transportation,
+        rows: rows.map(r => ({
+          id: r.id,
+          sl: r.sl,
+          desc: r.desc,
+          qty: r.qty,
+          unit: r.unit,
+          price: r.price,
+          amount: r.amount
+        })),
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+
+      await setDoc(doc(db, "documents", newId), docPayload);
+      setCurrentDocId(newId);
+      setSaveStatus("saved");
+      setTimeout(() => setSaveStatus("idle"), 3000);
+    } catch (err) {
+      console.error("Error duplicating document:", err);
+      setSaveStatus("error");
+      setTimeout(() => setSaveStatus("idle"), 3000);
     }
   };
 
@@ -618,6 +664,80 @@ export default function QuotationBuilder() {
     }
   };
 
+  // Excel style pasting: parses tabs as columns and newlines as rows
+  const handlePaste = (
+    e: React.ClipboardEvent<HTMLTextAreaElement | HTMLInputElement>,
+    startRowIndex: number,
+    startColIndex: number
+  ) => {
+    const clipboardData = e.clipboardData.getData("text");
+    if (!clipboardData) return;
+
+    // Excel copies data as tab-separated values (TSV) for columns and newline for rows
+    if (clipboardData.includes("\t") || clipboardData.includes("\n")) {
+      e.preventDefault();
+      
+      const rowsData = clipboardData
+        .split(/\r?\n/)
+        .map(row => row.split("\t"));
+
+      // If the last row is empty (common when copying from Excel), remove it
+      if (rowsData.length > 1 && rowsData[rowsData.length - 1].length === 1 && rowsData[rowsData.length - 1][0] === "") {
+        rowsData.pop();
+      }
+
+      setRows((prevRows) => {
+        const updated = [...prevRows];
+        
+        // Loop through each copied row
+        rowsData.forEach((cols, rOffset) => {
+          const rIndex = startRowIndex + rOffset;
+          
+          // If we run out of rows, append a new row
+          if (rIndex >= updated.length) {
+            updated.push({
+              sl: updated.length + 1,
+              desc: "",
+              qty: "",
+              unit: "",
+              price: "",
+              amount: 0,
+            });
+          }
+
+          const targetRow = { ...updated[rIndex] };
+
+          // Loop through each copied column
+          cols.forEach((cellValue, cOffset) => {
+            const cIndex = startColIndex + cOffset;
+            const cleanedVal = cellValue.trim().replace(/^"([\s\S]*)"$/, "$1");
+            
+            // Map column index to field:
+            // 0: desc, 1: qty, 2: unit, 3: price
+            if (cIndex === 0) {
+              targetRow.desc = cleanedVal;
+            } else if (cIndex === 1) {
+              targetRow.qty = cleanedVal;
+            } else if (cIndex === 2) {
+              targetRow.unit = cleanedVal;
+            } else if (cIndex === 3) {
+              targetRow.price = cleanedVal;
+            }
+          });
+
+          // Re-calculate row amount
+          const q = parseFloat(String(targetRow.qty || "")) || 0;
+          const p = parseFloat(String(targetRow.price || "").replace(/,/g, "")) || 0;
+          targetRow.amount = q * p;
+
+          updated[rIndex] = targetRow;
+        });
+
+        return updated;
+      });
+    }
+  };
+
   const handleSaveClick = () => {
     // Generate default filename
     const identifier = docType === "invoice" ? (invoiceNo || "NEW") : (challanNo || "NEW");
@@ -769,7 +889,37 @@ export default function QuotationBuilder() {
         </div>
 
         {/* Right Side: Action Buttons */}
-        <div className="flex items-center gap-2 w-full md:w-auto justify-end">
+        <div className="flex flex-wrap items-center gap-2 w-full md:w-auto justify-end">
+          <button 
+            onClick={startNewDoc} 
+            className="bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 font-bold text-[11px] py-1.5 px-3 sm:px-4 rounded-md shadow-sm hover:shadow transition-all cursor-pointer flex items-center gap-1.5"
+            title="Start a fresh blank sheet"
+          >
+            <FilePlus className="h-3.5 w-3.5" />
+            <span>NEW SHEET</span>
+          </button>
+          
+          {currentDocId && (
+            <>
+              <button 
+                onClick={duplicateCurrentDoc} 
+                className="bg-white hover:bg-indigo-50 border border-indigo-200 text-indigo-700 font-bold text-[11px] py-1.5 px-3 sm:px-4 rounded-md shadow-sm hover:shadow transition-all cursor-pointer flex items-center gap-1.5"
+                title="Save a duplicated copy of this sheet online under a new name"
+              >
+                <Copy className="h-3.5 w-3.5" />
+                <span>DUPLICATE</span>
+              </button>
+              <button 
+                onClick={() => deleteSavedDoc(currentDocId)} 
+                className="bg-white hover:bg-rose-50 border border-rose-200 text-rose-600 hover:text-rose-700 font-bold text-[11px] py-1.5 px-3 sm:px-4 rounded-md shadow-sm hover:shadow transition-all cursor-pointer flex items-center gap-1.5"
+                title="Delete this sheet from the online database"
+              >
+                <Trash2 className="h-3.5 w-3.5 text-rose-500" />
+                <span>DELETE</span>
+              </button>
+            </>
+          )}
+
           <button 
             onClick={() => saveCurrentDocToApp()} 
             disabled={saveStatus === "saving"}
@@ -1065,9 +1215,9 @@ export default function QuotationBuilder() {
           <thead>
             <tr className="bg-slate-50 text-[8pt]">
               <th className="w-[4%] border border-black py-1 text-center font-bold">SL</th>
-              <th className="w-[62%] border border-black py-1 text-left px-2 font-bold">Description</th>
-              <th className="w-[6%] border border-black py-1 text-center font-bold">Qty</th>
-              <th className="w-[6%] border border-black py-1 text-center font-bold">Unit</th>
+              <th className="w-[54%] border border-black py-1 text-left px-2 font-bold">Description</th>
+              <th className="w-[8%] border border-black py-1 text-center font-bold">Qty</th>
+              <th className="w-[12%] border border-black py-1 text-center font-bold">Unit</th>
               <th className="w-[10%] border border-black py-1 text-center font-bold">Price</th>
               <th className="w-[12%] border border-black py-1 text-center font-bold">Amount</th>
             </tr>
@@ -1099,6 +1249,7 @@ export default function QuotationBuilder() {
                         handleKeyDown(e, idx, 0);
                       }
                     }}
+                    onPaste={(e) => handlePaste(e, idx, 0)}
                     data-row={idx}
                     data-col={0}
                     rows={1}
@@ -1107,46 +1258,64 @@ export default function QuotationBuilder() {
                   />
                 </td>
                 <td className="border border-black text-center font-mono text-[9pt] align-top py-1">
-                  <input
-                    type="text"
+                  <textarea
                     value={row.qty}
-                    onChange={(e) => handleRowChange(idx, "qty", e.target.value)}
+                    onChange={(e) => {
+                      handleRowChange(idx, "qty", e.target.value);
+                      e.target.style.height = "auto";
+                      e.target.style.height = `${e.target.scrollHeight}px`;
+                    }}
                     onKeyDown={(e) => handleKeyDown(e, idx, 1)}
+                    onPaste={(e) => handlePaste(e, idx, 1)}
                     data-row={idx}
                     data-col={1}
-                    className={`w-full text-center border-none outline-none bg-transparent px-0 font-mono text-slate-800 align-top ${
+                    rows={1}
+                    style={{ height: "auto", resize: "none" }}
+                    className={`w-full text-center border-none outline-none bg-transparent px-0 font-mono text-slate-800 align-top overflow-hidden py-0.5 whitespace-pre-wrap break-all ${
                       row.qty.length > 6 ? "text-[7.5pt]" : "text-[9pt]"
                     }`}
                   />
                 </td>
                 <td className="border border-black text-center text-[9pt] align-top py-1">
-                  <input
-                    type="text"
+                  <textarea
                     value={row.unit}
-                    onChange={(e) => handleRowChange(idx, "unit", e.target.value)}
+                    onChange={(e) => {
+                      handleRowChange(idx, "unit", e.target.value);
+                      e.target.style.height = "auto";
+                      e.target.style.height = `${e.target.scrollHeight}px`;
+                    }}
                     onKeyDown={(e) => handleKeyDown(e, idx, 2)}
+                    onPaste={(e) => handlePaste(e, idx, 2)}
                     data-row={idx}
                     data-col={2}
-                    className={`w-full text-center border-none outline-none bg-transparent px-0 text-slate-800 align-top ${
+                    rows={1}
+                    style={{ height: "auto", resize: "none" }}
+                    className={`w-full text-center border-none outline-none bg-transparent px-0 text-slate-800 align-top overflow-hidden py-0.5 whitespace-pre-wrap break-all ${
                       row.unit.length > 6 ? "text-[7.5pt]" : "text-[9pt]"
                     }`}
                   />
                 </td>
                 <td className="border border-black text-center font-mono text-[9pt] align-top py-1">
-                  <input
-                    type="text"
+                  <textarea
                     value={row.price}
-                    onChange={(e) => handleRowChange(idx, "price", e.target.value)}
+                    onChange={(e) => {
+                      handleRowChange(idx, "price", e.target.value);
+                      e.target.style.height = "auto";
+                      e.target.style.height = `${e.target.scrollHeight}px`;
+                    }}
                     onKeyDown={(e) => handleKeyDown(e, idx, 3)}
+                    onPaste={(e) => handlePaste(e, idx, 3)}
                     data-row={idx}
                     data-col={3}
-                    className={`w-full text-center border-none outline-none bg-transparent px-0 font-mono text-slate-800 align-top ${
+                    rows={1}
+                    style={{ height: "auto", resize: "none" }}
+                    className={`w-full text-center border-none outline-none bg-transparent px-0 font-mono text-slate-800 align-top overflow-hidden py-0.5 whitespace-pre-wrap break-all ${
                       row.price.length > 8 ? "text-[7.5pt]" : "text-[9pt]"
                     }`}
                   />
                 </td>
                 <td className="border border-black text-right pr-2 font-mono text-[9pt] font-semibold text-slate-800 align-top py-1">
-                  <div className={`truncate ${
+                  <div className={`whitespace-normal break-all leading-tight ${
                     row.amount > 0 && row.amount.toLocaleString("en-US", { minimumFractionDigits: 2 }).length > 12
                       ? "text-[7.5pt]"
                       : "text-[9pt]"
@@ -1178,94 +1347,121 @@ export default function QuotationBuilder() {
 
         {/* Quotation Footer & Closing Box */}
         <div className="closing-wrap mt-2.5">
-          <div className="closing-row flex flex-row items-stretch justify-between gap-0 mt-2.5 w-full bg-white min-h-[40px] h-auto">
-            {/* Amount in Words (Compact, on the left) */}
-            <div className="amount-words-container w-1/2 border-y-2 border-l-2 border-black p-2 bg-slate-50/50 flex flex-col justify-center text-left">
-              <span className="font-extrabold text-[7pt] text-slate-700 uppercase tracking-wider block mb-0.5">
-                Amount in Words:
-              </span>
-              <span className="text-[8.5pt] font-mono italic text-black font-black uppercase leading-tight">
-                {numberToWords(calculatedGrandTotal)}
-              </span>
-            </div>
-
-            {/* Calculations block (Right side) */}
-            <div className="total-container w-1/2 flex flex-col text-black bg-white border-2 border-black">
+          <table className="closing-row w-full border-collapse border-2 border-black table-fixed mt-2.5 bg-white text-black z-10 relative">
+            <tbody>
               {docType === "quotation" ? (
-                /* Simple Quotation Total */
-                <div className="flex flex-row items-stretch h-full min-h-[40px]">
-                  <div className="total-lbl bg-slate-50 w-[170px] shrink-0 pr-2 text-right border-r-2 border-black text-[9pt] font-bold uppercase flex items-center justify-end">
-                    TOTAL
-                  </div>
-                  <div className="total-val flex-grow text-center text-[10pt] font-mono font-black flex items-center justify-center px-2 py-1 leading-tight">
-                    {grandTotal.toLocaleString("en-US", { minimumFractionDigits: 2 })}
-                  </div>
-                </div>
+                <tr className="align-stretch">
+                  {/* Amount in Words (Compact, on the left) */}
+                  <td className="amount-words-container w-1/2 border-r-2 border-black p-2 bg-slate-50/50 text-left align-middle">
+                    <span className="font-extrabold text-[7pt] text-slate-700 uppercase tracking-wider block mb-0.5">
+                      Amount in Words:
+                    </span>
+                    <span className="text-[8.5pt] font-mono italic text-black font-black uppercase leading-tight">
+                      {numberToWords(calculatedGrandTotal)}
+                    </span>
+                  </td>
+                  {/* Total Amount (Right side) */}
+                  <td className="w-1/2 p-0 align-stretch">
+                    <div className="flex flex-row items-stretch h-full min-h-[40px] w-full">
+                      <div className="total-lbl bg-slate-50 w-[170px] shrink-0 pr-2 text-right border-r-2 border-black text-[9pt] font-bold uppercase flex items-center justify-end">
+                        TOTAL
+                      </div>
+                      <div className="total-val flex-grow text-right pr-4 text-[10pt] font-mono font-black flex items-center justify-end px-2 py-1 leading-tight">
+                        {grandTotal.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                      </div>
+                    </div>
+                  </td>
+                </tr>
               ) : (
-                /* Invoice Calculations with Subtotal, VAT, Transportation and Grand Total */
-                <div className="flex flex-col text-[8.5pt]">
-                  {/* Subtotal row */}
-                  <div className="flex border-b border-black">
-                    <div className="total-lbl bg-slate-50 w-[170px] shrink-0 pr-2 text-right border-r border-black font-bold uppercase py-1.5 text-[8pt]">
-                      Sub Total
-                    </div>
-                    <div className="total-val flex-grow text-right pr-3 font-mono font-bold py-1.5">
-                      {grandTotal.toLocaleString("en-US", { minimumFractionDigits: 2 })}
-                    </div>
-                  </div>
-                  
-                  {/* VAT row */}
-                  <div className="flex border-b border-black items-center">
-                    <div className="total-lbl bg-slate-50 w-[170px] shrink-0 pr-2 text-right border-r border-black font-bold uppercase py-1.5 text-[8pt] flex items-center justify-end gap-1">
-                      <span>VAT</span>
-                      <span className="no-print print:hidden flex items-center bg-slate-200 border border-slate-300 rounded px-1 text-[8px] font-mono font-bold text-slate-700">
-                        <input
-                          type="number"
-                          value={vatPercent}
-                          onChange={(e) => setVatPercent(Math.max(0, parseFloat(e.target.value) || 0))}
-                          className="w-8 bg-transparent text-center focus:outline-none border-none p-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none animate-none"
-                        />
-                        %
+                <>
+                  {/* Row 1: Sub Total */}
+                  <tr className="align-stretch">
+                    {/* Amount in Words (rowspan 4 on the left half) */}
+                    <td rowSpan={4} className="amount-words-container w-1/2 border-r-2 border-black p-3 bg-slate-50/50 text-left align-middle">
+                      <span className="font-extrabold text-[7.5pt] text-slate-700 uppercase tracking-wider block mb-1">
+                        Amount in Words:
                       </span>
-                      <span className="hidden print:inline font-mono">({vatPercent}%)</span>
-                    </div>
-                    <div className="total-val flex-grow text-right pr-3 font-mono font-bold py-1.5">
-                      {((grandTotal * vatPercent) / 100).toLocaleString("en-US", { minimumFractionDigits: 2 })}
-                    </div>
-                  </div>
-
-                  {/* Transportation Charges row */}
-                  <div className="flex border-b border-black items-center">
-                    <div className="total-lbl bg-slate-50 w-[170px] shrink-0 pr-2 text-right border-r border-black font-bold uppercase py-1.5 text-[8pt] flex items-center justify-end gap-1">
-                      <span>Transportation</span>
-                      <span className="no-print print:hidden flex items-center bg-slate-200 border border-slate-300 rounded px-1 text-[8px] font-mono font-bold text-slate-700">
-                        <input
-                          type="number"
-                          value={transportation === 0 ? "" : transportation}
-                          placeholder="0"
-                          onChange={(e) => setTransportation(Math.max(0, parseFloat(e.target.value) || 0))}
-                          className="w-12 bg-transparent text-center focus:outline-none border-none p-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none animate-none"
-                        />
+                      <span className="text-[9.5pt] font-mono italic text-black font-black uppercase leading-tight">
+                        {numberToWords(calculatedGrandTotal)}
                       </span>
-                    </div>
-                    <div className="total-val flex-grow text-right pr-3 font-mono font-bold py-1.5">
-                      {transportation.toLocaleString("en-US", { minimumFractionDigits: 2 })}
-                    </div>
-                  </div>
+                    </td>
+                    {/* Sub Total Value */}
+                    <td className="w-1/2 p-0 border-b border-black align-stretch">
+                      <div className="flex flex-row items-stretch h-full w-full">
+                        <div className="total-lbl bg-slate-50 w-[170px] shrink-0 pr-2 py-1.5 text-right border-r border-black font-bold uppercase text-[8pt] flex items-center justify-end">
+                          Sub Total
+                        </div>
+                        <div className="total-val flex-grow text-right pr-3 font-mono font-bold py-1.5 flex items-center justify-end">
+                          {grandTotal.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
 
-                  {/* Grand Total row */}
-                  <div className="flex bg-slate-100 font-black">
-                    <div className="total-lbl bg-slate-200 w-[170px] shrink-0 pr-2 text-right border-r border-black font-extrabold uppercase py-2 text-[8.5pt]">
-                      Grand Total
-                    </div>
-                    <div className="total-val flex-grow text-right pr-3 font-mono font-black py-2 text-[9.5pt]">
-                      {(grandTotal + (grandTotal * vatPercent) / 100 + transportation).toLocaleString("en-US", { minimumFractionDigits: 2 })}
-                    </div>
-                  </div>
-                </div>
+                  {/* Row 2: VAT */}
+                  <tr className="align-stretch">
+                    <td className="p-0 border-b border-black align-stretch">
+                      <div className="flex flex-row items-stretch h-full w-full">
+                        <div className="total-lbl bg-slate-50 w-[170px] shrink-0 pr-2 py-1.5 text-right border-r border-black font-bold uppercase text-[8pt] flex items-center justify-end gap-1">
+                          <span>VAT</span>
+                          <span className="no-print print:hidden flex items-center bg-slate-200 border border-slate-300 rounded px-1 text-[8px] font-mono font-bold text-slate-700">
+                            <input
+                              type="number"
+                              value={vatPercent}
+                              onChange={(e) => setVatPercent(Math.max(0, parseFloat(e.target.value) || 0))}
+                              className="w-8 bg-transparent text-center focus:outline-none border-none p-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none animate-none"
+                            />
+                            %
+                          </span>
+                          <span className="hidden print:inline font-mono">({vatPercent}%)</span>
+                        </div>
+                        <div className="total-val flex-grow text-right pr-3 font-mono font-bold py-1.5 flex items-center justify-end">
+                          {((grandTotal * vatPercent) / 100).toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+
+                  {/* Row 3: Transportation charges */}
+                  <tr className="align-stretch">
+                    <td className="p-0 border-b border-black align-stretch">
+                      <div className="flex flex-row items-stretch h-full w-full">
+                        <div className="total-lbl bg-slate-50 w-[170px] shrink-0 pr-2 py-1.5 text-right border-r border-black font-bold uppercase text-[8pt] flex items-center justify-end gap-1">
+                          <span>Transportation</span>
+                          <span className="no-print print:hidden flex items-center bg-slate-200 border border-slate-300 rounded px-1 text-[8px] font-mono font-bold text-slate-700">
+                            <input
+                              type="number"
+                              value={transportation === 0 ? "" : transportation}
+                              placeholder="0"
+                              onChange={(e) => setTransportation(Math.max(0, parseFloat(e.target.value) || 0))}
+                              className="w-12 bg-transparent text-center focus:outline-none border-none p-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none animate-none"
+                            />
+                          </span>
+                        </div>
+                        <div className="total-val flex-grow text-right pr-3 font-mono font-bold py-1.5 flex items-center justify-end">
+                          {transportation.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+
+                  {/* Row 4: Grand Total */}
+                  <tr className="align-stretch">
+                    <td className="p-0 bg-slate-100 align-stretch">
+                      <div className="flex flex-row items-stretch h-full w-full">
+                        <div className="bg-slate-200 w-[170px] shrink-0 pr-2 py-2 text-right border-r border-black font-extrabold uppercase text-[8.5pt] flex items-center justify-end">
+                          Grand Total
+                        </div>
+                        <div className="total-val flex-grow text-right pr-3 font-mono font-black py-2 text-[9.5pt] flex items-center justify-end">
+                          {(grandTotal + (grandTotal * vatPercent) / 100 + transportation).toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                </>
               )}
-            </div>
-          </div>
+            </tbody>
+          </table>
 
           <div className="sig-section mt-8 flex flex-row justify-between gap-6 sm:gap-10">
             <div className="sig-box w-full sm:w-[220px] print:w-[220px] text-center flex flex-col justify-end h-[90px]">

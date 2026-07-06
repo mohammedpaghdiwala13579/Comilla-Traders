@@ -307,7 +307,8 @@
     border-collapse: collapse !important;
     border-spacing: 0 !important;
     box-sizing: border-box !important;
-    border: none !important;
+    border: 1.5px solid #000000 !important;
+    border-color: #000000 !important;
     background-color: transparent !important;
     margin-top: 10px !important;
     padding: 0 !important;
@@ -325,31 +326,22 @@
     width: 100% !important;
   }
 
-  body.print-quotation-only .total-container {
+  body.print-quotation-only .closing-row td.amount-words-container {
     display: table-cell !important;
-    vertical-align: top !important;
-    border: 1.5px solid #000000 !important;
+    vertical-align: middle !important;
+    border: none !important;
+    border-right: 1.5px solid #000000 !important;
     border-color: #000000 !important;
     box-sizing: border-box !important;
     width: 50% !important;
+    padding: 8px 12px !important;
     margin: 0 !important;
-    padding: 0 !important;
-    background-color: #ffffff !important;
+    background-color: #f8fafc !important;
   }
 
-  body.print-quotation-only .total-container > div.flex-row {
-    display: flex !important;
-    flex-direction: row !important;
-    align-items: stretch !important;
-    height: 100% !important;
-    box-sizing: border-box !important;
-  }
-
-  body.print-quotation-only .total-container > div.flex-col {
-    display: flex !important;
-    flex-direction: column !important;
-    height: 100% !important;
-    box-sizing: border-box !important;
+  body.print-quotation-only .closing-row td.border-b {
+    border-bottom: 1.5px solid #000000 !important;
+    border-color: #000000 !important;
   }
 
   body.print-quotation-only .total-lbl {
@@ -369,16 +361,6 @@
     font-size: 8pt !important;
   }
 
-  body.print-quotation-only .total-container > div.flex-row .total-lbl {
-    height: 100% !important;
-  }
-
-  body.print-quotation-only .total-container > div.flex-col .total-lbl {
-    height: auto !important;
-    padding-top: 6px !important;
-    padding-bottom: 6px !important;
-  }
-
   body.print-quotation-only .total-val {
     box-sizing: border-box !important;
     word-break: break-all !important;
@@ -390,32 +372,20 @@
     font-size: 9.5pt !important;
   }
 
-  body.print-quotation-only .total-container > div.flex-row .total-val {
+  body.print-quotation-only .closing-row .flex-row {
     display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
+    flex-direction: row !important;
+    align-items: stretch !important;
     height: 100% !important;
+    box-sizing: border-box !important;
+    width: 100% !important;
   }
 
-  body.print-quotation-only .total-container > div.flex-col .total-val {
+  body.print-quotation-only .closing-row .flex-row .total-val {
     display: flex !important;
     align-items: center !important;
     justify-content: flex-end !important;
     padding-right: 12px !important;
-    height: auto !important;
-  }
-
-  body.print-quotation-only .amount-words-container {
-    display: table-cell !important;
-    vertical-align: middle !important;
-    border: 1.5px solid #000000 !important;
-    border-right: none !important;
-    border-color: #000000 !important;
-    box-sizing: border-box !important;
-    width: 50% !important;
-    padding: 4px 8px !important;
-    margin: 0 !important;
-    background-color: #f8fafc !important;
   }
 
   body.print-quotation-only .sig-section {
