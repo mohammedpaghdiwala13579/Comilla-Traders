@@ -1,0 +1,528 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   CUSTOM UTILITIES FOR DESKTOP AND MOBILE
+   ───────────────────────────────────────────────────────────────────────── */
+.animate-spin-slow {
+  animation: spin 8s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* Hide scrollbars but preserve scrolling */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   PRINT MEDIA RULES (OPTIMIZED FOR DESKTOP & MOBILE PRINT ENGINE VIEWPORTS)
+   ───────────────────────────────────────────────────────────────────────── */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 5mm 6mm 5mm 6mm !important; /* Extremely narrow margins to maximize horizontal printable area */
+  }
+
+  /* 1. Hide interactive, navigational, or empty decoration elements */
+  nav, 
+  footer, 
+  header,
+  aside,
+  button,
+  select,
+  input.no-print,
+  textarea.no-print,
+  .no-print,
+  .filters-dashboard,
+  .sub-tabs-container,
+  .print-helper-modal,
+  [role="button"] {
+    display: none !important;
+  }
+
+  /* 2. Unconstrain page body for natural paper printing */
+  body, html, #root {
+    background: #ffffff !important;
+    color: #000000 !important;
+    width: 100% !important;
+    height: auto !important;
+    overflow: visible !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    font-size: 11px !important;
+    line-height: 1.4 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* 3. Outermost main layout should have no background or shadows */
+  main,
+  #root > div {
+    box-shadow: none !important;
+    background: transparent !important;
+    border: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  /* 4. Style each report section beautifully with ZERO borders to satisfy design preference */
+  .bg-white,
+  .print-card {
+    background-color: #ffffff !important;
+    border: none !important; /* Completely removed borders */
+    border-bottom: 1px dashed #cbd5e1 !important; /* Minimal dash-divider instead */
+    border-radius: 0px !important;
+    padding: 12px 0px !important; /* Squeeze spacing for high print utilization */
+    margin-bottom: 16px !important;
+    box-shadow: none !important;
+    page-break-inside: avoid !important;
+    display: block !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  /* 5. KPI Cards inside the grids should have no backgrounds or borders */
+  .grid-cols-2 > div, 
+  .grid-cols-4 > div, 
+  .lg\:grid-cols-4 > div,
+  .grid > div {
+    border: none !important;
+    border-bottom: 1px solid #e2e8f0 !important;
+    border-radius: 0px !important;
+    padding: 8px 0px !important;
+    margin-bottom: 8px !important;
+    background-color: transparent !important;
+    page-break-inside: avoid !important;
+    display: block !important;
+    height: auto !important;
+  }
+
+  /* 6. Remove global borders */
+  *, ::before, ::after {
+    border-color: #e2e8f0 !important;
+  }
+
+  /* 7. Handle grid layouts cleanly in print */
+  .grid {
+    display: block !important;
+  }
+
+  /* On wider print viewports, we can allow 2-column or 4-column structures for small cards */
+  @media (min-width: 600px) {
+    .grid {
+      display: grid !important;
+      gap: 1rem !important;
+    }
+    .grid-cols-2 {
+      grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    }
+    .lg\:grid-cols-4 {
+      grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    }
+    .lg\:grid-cols-2 {
+      grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    }
+  }
+
+  /* 8. Tables must be extremely broad and borderless on the sides */
+  table {
+    border-collapse: collapse !important;
+    border-spacing: 0 !important;
+    width: 100% !important;
+    margin: 1rem 0 !important;
+    page-break-inside: auto !important;
+  }
+
+  tr {
+    page-break-inside: avoid !important;
+    page-break-after: auto !important;
+  }
+
+  th, td {
+    padding: 6px 8px !important; /* Compact padding to broaden columns */
+    text-align: left !important;
+    color: #000000 !important;
+  }
+
+  /* Prevent wrapping of IMPA codes and unit cost numbers under print */
+  .print-nowrap {
+    white-space: nowrap !important;
+    word-break: keep-all !important;
+    overflow: visible !important;
+  }
+
+  thead {
+    display: table-header-group !important;
+  }
+
+  thead th {
+    background-color: #f8fafc !important;
+    font-weight: bold !important;
+    color: #000000 !important;
+    border: 1px solid #000000 !important;
+  }
+
+  /* 9. Keep SVGs/Charts properly scaled inside paper boundaries */
+  svg {
+    max-width: 100% !important;
+    height: auto !important;
+    max-height: 180px !important; /* Prevent massive vector spill */
+    page-break-inside: avoid !important;
+  }
+
+  /* 10. Force display text truncation in tables to print completely */
+  .truncate, 
+  td.truncate,
+  th.truncate,
+  p.truncate,
+  span.truncate {
+    white-space: normal !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
+    word-break: break-word !important;
+    max-width: none !important;
+  }
+
+  /* 11. Expand max-height containers so they don't scroll/cut in print */
+  .overflow-hidden,
+  .overflow-y-auto,
+  .overflow-x-auto,
+  [class*="max-h-"] {
+    max-height: none !important;
+    overflow: visible !important;
+  }
+
+  /* 12. Style headers */
+  .print-only-header {
+    display: block !important;
+    text-align: center !important;
+    border-bottom: 2.5px solid #1e293b !important;
+    padding-bottom: 12px !important;
+    margin-bottom: 24px !important;
+  }
+
+  /* ─── SPECIFIC QUOTATION PRINT CUSTOMIZATIONS ─── */
+  /* Specialized print mode that hides ALL layout wrappers except the quotation sheet */
+  body.print-quotation-only {
+    background: #ffffff !important;
+  }
+
+  body.print-quotation-only aside,
+  body.print-quotation-only header,
+  body.print-quotation-only footer,
+  body.print-quotation-only .no-print,
+  body.print-quotation-only .top-toolbar,
+  body.print-quotation-only .row-ctrl,
+  body.print-quotation-only button,
+  body.print-quotation-only select,
+  body.print-quotation-only #root > div > aside,
+  body.print-quotation-only #root > div > header,
+  body.print-quotation-only #root > div > main > div:first-of-type {
+    display: none !important;
+    height: 0 !important;
+    width: 0 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    overflow: hidden !important;
+    visibility: hidden !important;
+  }
+
+  body.print-quotation-only #root,
+  body.print-quotation-only #root > div,
+  body.print-quotation-only main,
+  body.print-quotation-only .quotation-container,
+  body.print-quotation-only .max-w-7xl,
+  body.print-quotation-only .max-w-7xl > div {
+    background: transparent !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    border: none !important;
+    box-shadow: none !important;
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-height: auto !important;
+    overflow: visible !important;
+  }
+
+  .quotation-builder-print-root {
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  .sheet { 
+    box-shadow: none !important; 
+    margin: 0 auto !important; 
+    width: 210mm !important;
+    padding: 0 12mm !important;
+    box-sizing: border-box;
+    background: transparent !important;
+    page-break-after: avoid !important;
+    page-break-inside: avoid !important;
+  }
+
+  .closing-wrap { 
+    page-break-inside: avoid !important; 
+  }
+
+  table.main-table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    table-layout: fixed !important;
+    border: 1.5px solid #000000 !important;
+    page-break-inside: auto !important;
+  }
+
+  table.main-table th, 
+  table.main-table td {
+    border: 1px solid #000000 !important;
+    color: #000000 !important;
+    font-size: 9pt !important;
+    padding: 2px 4px !important;
+  }
+
+  table.main-table td.desc {
+    font-size: 8.5pt !important;
+  }
+
+  body.print-quotation-only .closing-row {
+    display: table !important;
+    width: 100% !important;
+    table-layout: fixed !important;
+    box-sizing: border-box !important;
+    border: none !important;
+    background-color: transparent !important;
+    min-height: 40px !important;
+    height: auto !important;
+    margin-top: 10px !important;
+    padding: 0 !important;
+    border-radius: 0px !important;
+    margin-bottom: 0 !important;
+    overflow: visible !important;
+    border-collapse: collapse !important;
+    border-spacing: 0 !important;
+  }
+
+  body.print-quotation-only .print-outer-layout-table,
+  body.print-quotation-only .print-outer-layout-table > thead > tr > td,
+  body.print-quotation-only .print-outer-layout-table > tbody > tr > td {
+    border: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    background: transparent !important;
+    width: 100% !important;
+  }
+
+  body.print-quotation-only .total-container {
+    display: table-cell !important;
+    vertical-align: top !important;
+    border: 1.5px solid #000000 !important;
+    border-color: #000000 !important;
+    box-sizing: border-box !important;
+    width: 50% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    height: 100% !important;
+    background-color: #ffffff !important;
+  }
+
+  body.print-quotation-only .total-lbl {
+    width: 170px !important;
+    min-width: 170px !important;
+    flex-shrink: 0 !important;
+    border: none !important;
+    border-right: 1.5px solid #000000 !important;
+    border-color: #000000 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-end !important;
+    padding-right: 8px !important;
+    box-sizing: border-box !important;
+    margin: 0 !important;
+    height: 100% !important;
+    background-color: #f8fafc !important;
+    font-size: 8pt !important;
+  }
+
+  body.print-quotation-only .total-val {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    box-sizing: border-box !important;
+    word-break: break-all !important;
+    white-space: normal !important;
+    padding: 2px 8px !important;
+    line-height: 1.1 !important;
+    margin: 0 !important;
+    height: 100% !important;
+    flex-grow: 1 !important;
+    font-size: 9.5pt !important;
+  }
+
+  body.print-quotation-only .amount-words-container {
+    display: table-cell !important;
+    vertical-align: middle !important;
+    border: 1.5px solid #000000 !important;
+    border-right: none !important;
+    border-color: #000000 !important;
+    box-sizing: border-box !important;
+    width: 50% !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: center !important;
+    padding: 4px 8px !important;
+    margin: 0 !important;
+    height: 100% !important;
+    background-color: #f8fafc !important;
+  }
+
+  body.print-quotation-only .sig-section {
+    margin-top: 15px !important;
+    display: flex !important;
+    flex-direction: row !important;
+    justify-content: space-between !important;
+    gap: 40px !important;
+    width: 100% !important;
+  }
+
+  body.print-quotation-only .sig-box {
+    width: 220px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    box-sizing: border-box !important;
+    position: relative !important;
+  }
+
+  body.print-quotation-only .meta-grid {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 16px !important;
+  }
+
+  body.print-quotation-only .meta-box {
+    border: 1px solid #000000 !important;
+    border-radius: 4px !important;
+    padding: 12px !important;
+    margin: 0 !important;
+    background-color: transparent !important;
+    display: block !important;
+  }
+
+  body.print-quotation-only .meta-box-inner-grid {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+  }
+
+  body.print-quotation-only .meta-inner-field {
+    border: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    background-color: transparent !important;
+    display: block !important;
+  }
+
+  body.print-quotation-only .border-dotted {
+    border-bottom: 1px dotted #000000 !important;
+  }
+
+  body.print-quotation-only input,
+  body.print-quotation-only textarea {
+    color: #000000 !important;
+    opacity: 1 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  body.print-quotation-only .sig-title {
+    font-size: 9pt !important;
+    font-weight: bold !important;
+    line-height: 1 !important;
+  }
+
+  body.print-quotation-only .sig-line {
+    border-top: 1.5px solid #000000 !important;
+    margin-top: 0 !important;
+    padding-top: 3px !important;
+    font-size: 9pt !important;
+    font-weight: bold !important;
+    line-height: 1 !important;
+  }
+
+  input:not(.border-dotted), textarea:not(.border-dotted) {
+    border: none !important;
+  }
+
+  input, textarea {
+    outline: none !important;
+    box-shadow: none !important;
+    background-color: transparent !important;
+    resize: none !important;
+    overflow: hidden !important;
+  }
+
+  table.main-table input,
+  table.main-table textarea {
+    font-size: 8.5pt !important;
+    line-height: 1.1 !important;
+    padding: 1px 0 !important;
+    margin: 0 !important;
+    height: auto !important;
+    min-height: unset !important;
+  }
+
+  /* Force business header layout on print */
+  body.print-quotation-only .business-header {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 16px !important;
+    border-bottom: 2px solid #000000 !important;
+    padding-bottom: 12px !important;
+    margin-bottom: 16px !important;
+    width: 100% !important;
+  }
+
+  body.print-quotation-only .business-header .logo-container {
+    width: 110px !important;
+    height: 110px !important;
+    min-width: 110px !important;
+    min-height: 110px !important;
+    border-radius: 9999px !important;
+    border: 2px solid #cbd5e1 !important;
+    background-color: #000000 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    box-sizing: border-box !important;
+    overflow: hidden !important;
+  }
+
+  body.print-quotation-only .business-header .contact-details {
+    display: block !important;
+    text-align: right !important;
+  }
+}
+
+/* Hide print-only header elements on standard screen display */
+@media screen {
+  .print-only-header {
+    display: none !important;
+  }
+}

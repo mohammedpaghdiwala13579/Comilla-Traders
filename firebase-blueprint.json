@@ -1,0 +1,28 @@
+{
+  "version": "1.0",
+  "collections": {
+    "documents": {
+      "fields": {
+        "id": "string",
+        "name": "string",
+        "createdAt": "string",
+        "updatedAt": "string",
+        "docType": "string",
+        "dateVal": "string",
+        "messers": "string",
+        "address": "string",
+        "invoiceNo": "string",
+        "challanNo": "string",
+        "requisitionNo": "string",
+        "poNumber": "string",
+        "vatPercent": "number",
+        "transportation": "number",
+        "rows": "array"
+      },
+      "rules": {
+        "read": "true",
+        "write": "true"
+      }
+    }
+  }
+}
