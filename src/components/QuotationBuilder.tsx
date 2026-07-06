@@ -99,7 +99,6 @@ export default function QuotationBuilder() {
 
   const dateRef = useRef<HTMLInputElement>(null);
   const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const tableRef = useRef<HTMLTableElement>(null);
 
   const triggerDatePicker = () => {
     if (dateRef.current) {
@@ -669,14 +668,29 @@ export default function QuotationBuilder() {
     return rowIndex >= minRow && rowIndex <= maxRow && colIndex >= minCol && colIndex <= maxCol;
   };
 
+  // True when the current drag/selection spans more than a single cell
+  const hasRangeSelection = () => {
+    if (!selectionStart || !selectionEnd) return false;
+    return selectionStart.rowIndex !== selectionEnd.rowIndex || selectionStart.colIndex !== selectionEnd.colIndex;
+  };
+
   const handleCellMouseDown = (e: React.MouseEvent, rowIndex: number, colIndex: number) => {
     if (e.button !== 0) return; // Only left click
+
+    const isActive = selectedCell?.rowIndex === rowIndex && selectedCell?.colIndex === colIndex;
 
     setIsSelecting(true);
     setSelectionStart({ rowIndex, colIndex });
     setSelectionEnd({ rowIndex, colIndex });
     setSelectedCell({ rowIndex, colIndex });
     setSelectedRowIndex(rowIndex);
+
+    if (!isActive) {
+      if (document.activeElement instanceof HTMLElement) {
+        document.activeElement.blur();
+      }
+      e.preventDefault(); // Prevents cursor focus so drag-select can start smoothly
+    }
   };
 
   const handleCellMouseEnter = (rowIndex: number, colIndex: number) => {
@@ -688,18 +702,11 @@ export default function QuotationBuilder() {
   const handleCellMouseUp = (e: React.MouseEvent, rowIndex: number, colIndex: number) => {
     setIsSelecting(false);
     
-    // Check if this was a click (not a drag) - if start and end are the same
-    if (selectionStart && 
-        selectionStart.rowIndex === rowIndex && 
-        selectionStart.colIndex === colIndex &&
-        selectionEnd && 
-        selectionEnd.rowIndex === rowIndex && 
-        selectionEnd.colIndex === colIndex) {
-      // This was a single click, focus the textarea if it's an editable cell
+    // Only auto-focus the textarea if this was a single-cell click, not the end of a drag
+    const isSingleCell = selectionStart && selectionStart.rowIndex === rowIndex && selectionStart.colIndex === colIndex;
+    if (isSingleCell && !hasRangeSelection()) {
       if (colIndex >= 0 && colIndex <= 3) {
-        const textarea = document.querySelector(
-          `[data-row="${rowIndex}"][data-col="${colIndex}"]`
-        ) as HTMLTextAreaElement | null;
+        const textarea = document.querySelector(`[data-row="${rowIndex}"][data-col="${colIndex}"]`) as HTMLTextAreaElement | null;
         if (textarea) {
           textarea.focus();
         }
@@ -728,6 +735,20 @@ export default function QuotationBuilder() {
     });
   };
 
+  const getCellClassName = (rowIndex: number, colIndex: number, baseClasses: string) => {
+    const isSelected = isCellSelected(rowIndex, colIndex);
+    const isActive = selectedCell?.rowIndex === rowIndex && selectedCell?.colIndex === colIndex;
+    
+    let highlightClass = "";
+    if (isActive) {
+      highlightClass = "outline outline-2 outline-emerald-600 outline-offset-[-2px] bg-emerald-50/15 z-10 relative";
+    } else if (isSelected) {
+      highlightClass = "outline outline-1 outline-emerald-400 outline-offset-[-1px] bg-emerald-50/25 z-10 relative shadow-3xs";
+    }
+    
+    return `${baseClasses} ${highlightClass}`;
+  };
+
   const handleCellClick = (rowIndex: number, colIndex: number) => {
     setSelectedRowIndex(rowIndex);
     setSelectedCell({ rowIndex, colIndex });
@@ -753,6 +774,14 @@ export default function QuotationBuilder() {
 
   const handleCellContextMenu = (e: React.MouseEvent, idx: number, colIdx: number) => {
     e.preventDefault();
+
+    // Preserve an existing multi-cell selection if the right-click happened inside it;
+    // otherwise collapse selection down to the single cell that was right-clicked.
+    const clickedInsideRange = isCellSelected(idx, colIdx);
+    if (!clickedInsideRange) {
+      setSelectionStart({ rowIndex: idx, colIndex: colIdx });
+      setSelectionEnd({ rowIndex: idx, colIndex: colIdx });
+    }
     setSelectedRowIndex(idx);
     setSelectedCell({ rowIndex: idx, colIndex: colIdx });
     
@@ -1209,7 +1238,7 @@ export default function QuotationBuilder() {
 
   return (
     <div className="quotation-container relative min-h-screen flex flex-col items-center bg-[#f1f5f9] py-5 overflow-x-auto text-[#000] font-sans antialiased">
-      {/* Screen Toolbar - Simplified */}
+      {/* Screen Toolbar */}
       <div className="top-toolbar no-print print:hidden w-full max-w-[210mm] sm:w-[210mm] mb-4 flex flex-col md:flex-row justify-between items-center gap-3 px-4 sm:px-0 z-10">
         {/* Left Side: Mode Selector & Auto-Save Control */}
         <div className="flex flex-wrap items-center gap-3 w-full md:w-auto justify-between md:justify-start">
@@ -1262,10 +1291,40 @@ export default function QuotationBuilder() {
           </div>
         </div>
 
-        {/* Right Side: Essential Action Buttons Only */}
+        {/* Right Side: Action Buttons */}
         <div className="flex flex-wrap items-center gap-2 w-full md:w-auto justify-end">
           <button 
-            onClick={saveCurrentDocToApp} 
+            onClick={startNewDoc} 
+            className="bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 font-bold text-[11px] py-1.5 px-3 sm:px-4 rounded-md shadow-sm hover:shadow transition-all cursor-pointer flex items-center gap-1.5"
+            title="Start a fresh blank sheet"
+          >
+            <FilePlus className="h-3.5 w-3.5" />
+            <span>NEW SHEET</span>
+          </button>
+          
+          {currentDocId && (
+            <>
+              <button 
+                onClick={duplicateCurrentDoc} 
+                className="bg-white hover:bg-indigo-50 border border-indigo-200 text-indigo-700 font-bold text-[11px] py-1.5 px-3 sm:px-4 rounded-md shadow-sm hover:shadow transition-all cursor-pointer flex items-center gap-1.5"
+                title="Save a duplicated copy of this sheet online under a new name"
+              >
+                <Copy className="h-3.5 w-3.5" />
+                <span>DUPLICATE</span>
+              </button>
+              <button 
+                onClick={() => deleteSavedDoc(currentDocId)} 
+                className="bg-white hover:bg-rose-50 border border-rose-200 text-rose-600 hover:text-rose-700 font-bold text-[11px] py-1.5 px-3 sm:px-4 rounded-md shadow-sm hover:shadow transition-all cursor-pointer flex items-center gap-1.5"
+                title="Delete this sheet from the online database"
+              >
+                <Trash2 className="h-3.5 w-3.5 text-rose-500" />
+                <span>DELETE</span>
+              </button>
+            </>
+          )}
+
+          <button 
+            onClick={() => saveCurrentDocToApp()} 
             disabled={saveStatus === "saving"}
             className={`${
               saveStatus === "saved" 
@@ -1312,6 +1371,105 @@ export default function QuotationBuilder() {
             <Printer className="h-3.5 w-3.5" />
             <span>PRINT / PDF</span>
           </button>
+        </div>
+      </div>
+
+      {/* Editing State Banner */}
+      {currentDocId && (
+        <div className="no-print print:hidden w-full max-w-[210mm] sm:w-[210mm] mb-3 px-4 sm:px-0 z-10 animate-in fade-in slide-in-from-top-2 duration-250">
+          <div className="bg-indigo-50 border border-indigo-100 rounded-lg p-3 sm:p-4 flex items-center justify-between text-xs text-indigo-950 shadow-sm">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <span className="bg-indigo-600 text-white font-black text-[9px] px-2 py-0.5 rounded-sm uppercase tracking-wider shrink-0 shadow-xs">
+                EDITING MODE
+              </span>
+              <span className="font-bold text-slate-800 truncate" title={savedDocs.find(d => d.id === currentDocId)?.name || "Active Sheet"}>
+                {savedDocs.find(d => d.id === currentDocId)?.name || "Active Sheet"}
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={resetSheetFields}
+              className="text-[11px] font-bold text-indigo-600 hover:text-indigo-800 hover:bg-indigo-100/50 px-2.5 py-1.5 rounded transition-all cursor-pointer uppercase tracking-wider shrink-0"
+            >
+              Start New / Close
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Excel / Google Sheets Style Full App Layout Toolbar */}
+      <div className="excel-editor-container no-print print:hidden w-full max-w-[210mm] sm:w-[210mm] bg-[#f8f9fa] border border-slate-300 rounded-lg shadow-md mb-4 overflow-hidden text-slate-800 z-10">
+        {/* Menu Bar: File */}
+        <div className="flex flex-wrap items-center gap-1 bg-[#f8f9fa] border-b border-slate-200 px-3 py-1 text-xs select-none">
+          <div className="font-semibold text-[13px] text-emerald-700 mr-4 font-mono flex items-center gap-1">
+            <span className="bg-emerald-700 text-white font-black text-[10px] px-1.5 py-0.5 rounded-xs leading-none shadow-xs">田</span>
+            <span className="font-extrabold tracking-tight font-sans">ComillaSheets</span>
+          </div>
+          
+          {/* File Dropdown */}
+          <div className="relative group">
+            <button className="px-2 py-1 hover:bg-slate-200 rounded-md cursor-pointer transition-all font-semibold text-slate-700 text-[11px]">File</button>
+            <div className="hidden group-hover:block absolute left-0 top-full bg-white border border-slate-200 shadow-xl rounded-md py-1 w-52 z-50 animate-in fade-in slide-in-from-top-1 duration-100">
+              <button onClick={startNewDoc} className="w-full text-left px-3 py-1.5 hover:bg-slate-100 flex items-center gap-2 text-[11px] text-slate-700 font-bold">
+                <FilePlus className="h-3.5 w-3.5 text-slate-400" /> New Sheet
+              </button>
+              <button onClick={saveCurrentDocToApp} className="w-full text-left px-3 py-1.5 hover:bg-slate-100 flex items-center gap-2 text-[11px] text-slate-700 font-bold">
+                <Save className="h-3.5 w-3.5 text-slate-400" /> Save to Cloud Database
+              </button>
+              <button onClick={handleSaveClick} className="w-full text-left px-3 py-1.5 hover:bg-slate-100 flex items-center gap-2 text-[11px] text-slate-700 font-bold">
+                <Download className="h-3.5 w-3.5 text-slate-400" /> Download Excel (.xlsx)
+              </button>
+              <button onClick={handlePrint} className="w-full text-left px-3 py-1.5 hover:bg-slate-100 flex items-center gap-2 text-[11px] text-slate-700 font-bold border-t border-slate-100">
+                <Printer className="h-3.5 w-3.5 text-slate-400" /> Print / Save as PDF
+              </button>
+            </div>
+          </div>
+
+          {/* Merge/Unmerge action for the current selection, replacing the old row-operations button cluster */}
+          <button
+            type="button"
+            onClick={toggleMergeSelectedRange}
+            title="Merge or unmerge the currently selected cell(s) into a single heading row"
+            className="ml-2 px-2 py-1 hover:bg-emerald-100 rounded-md cursor-pointer transition-all font-bold text-emerald-700 text-[11px] flex items-center gap-1.5 border border-emerald-200 bg-emerald-50"
+          >
+            <Heading className="h-3.5 w-3.5" />
+            <span>
+              {hasRangeSelection()
+                ? (rows.slice(
+                    Math.min(selectionStart!.rowIndex, selectionEnd!.rowIndex),
+                    Math.max(selectionStart!.rowIndex, selectionEnd!.rowIndex) + 1
+                  ).some(r => r.isMerged) ? "Unmerge Selection" : "Merge Selection")
+                : (rows[safeSelectedRowIndex]?.isMerged ? "Unmerge Row" : "Merge Row")}
+            </span>
+          </button>
+
+          {/* Right-aligned Compact Quick-access Buttons */}
+          <div className="ml-auto flex items-center gap-1.5 pr-1">
+            <button 
+              onClick={saveCurrentDocToApp}
+              title="Save to Cloud Database"
+              className="px-2 py-0.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 hover:text-emerald-800 rounded-md transition-all cursor-pointer flex items-center gap-1 font-bold text-[9px] shadow-3xs"
+            >
+              <Save className="h-3 w-3" />
+              <span className="hidden sm:inline">SAVE</span>
+            </button>
+            <button 
+              onClick={handleSaveClick}
+              title="Download Excel (.xlsx)"
+              className="px-2 py-0.5 bg-blue-50 hover:bg-blue-100 text-blue-700 hover:text-blue-800 rounded-md transition-all cursor-pointer flex items-center gap-1 font-bold text-[9px] shadow-3xs"
+            >
+              <Download className="h-3 w-3" />
+              <span className="hidden sm:inline">EXCEL</span>
+            </button>
+            <button 
+              onClick={handlePrint}
+              title="Print or Save as PDF"
+              className="px-2 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-700 hover:text-slate-800 rounded-md transition-all cursor-pointer flex items-center gap-1 font-bold text-[9px] shadow-3xs"
+            >
+              <Printer className="h-3 w-3" />
+              <span className="hidden sm:inline">PRINT</span>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -1538,11 +1696,7 @@ export default function QuotationBuilder() {
 
         {/* Compact Table */}
         <div className="w-full overflow-x-auto no-scrollbar -mx-4 px-4 sm:mx-0 sm:px-0">
-          <table 
-            ref={tableRef}
-            className="main-table w-[650px] sm:w-full border-collapse border-[1.5px] border-black table-fixed text-[9pt] select-none"
-            onMouseUp={() => setIsSelecting(false)}
-          >
+          <table className="main-table w-[650px] sm:w-full border-collapse border-[1.5px] border-black table-fixed text-[9pt]">
           <thead>
             <tr className="bg-slate-50 text-[8pt]">
               <th className="w-[4%] border border-black py-1 text-center font-bold">SL</th>
@@ -1556,21 +1710,26 @@ export default function QuotationBuilder() {
           <tbody>
             {rows.map((row, idx) => (
               <tr 
-                key={idx} 
+                key={row.sl} 
                 className={`group hover:bg-slate-50/50 transition-colors ${
                   row.isMerged ? "bg-amber-50/10 font-bold" : ""
+                } ${
+                  idx === safeSelectedRowIndex 
+                    ? "bg-emerald-50/10" 
+                    : ""
                 }`}
               >
                 <td 
                   onMouseDown={(e) => handleCellMouseDown(e, idx, -1)}
                   onMouseEnter={() => handleCellMouseEnter(idx, -1)}
                   onMouseUp={(e) => handleCellMouseUp(e, idx, -1)}
+                  onClick={() => handleCellClick(idx, -1)}
                   onContextMenu={(e) => handleCellContextMenu(e, idx, -1)}
-                  className={`border border-black text-center font-mono text-[8.5pt] align-top py-1 transition-all cursor-cell ${
-                    isCellSelected(idx, -1)
-                      ? "bg-emerald-600 text-white font-extrabold shadow-sm" 
+                  className={getCellClassName(idx, -1, `border border-black text-center font-mono text-[8.5pt] align-top py-1 transition-all cursor-pointer select-none ${
+                    idx === safeSelectedRowIndex
+                      ? "bg-emerald-50/30 text-slate-800"
                       : "bg-slate-50/30 text-slate-800"
-                  }`}
+                  }`)}
                 >
                   {idx + 1}
                 </td>
@@ -1578,16 +1737,13 @@ export default function QuotationBuilder() {
                 {row.isMerged ? (
                   /* Merged Description across Description, Qty, Unit, Price columns */
                   <td 
-                    colSpan={4}
+                    colSpan={4} 
                     onMouseDown={(e) => handleCellMouseDown(e, idx, 0)}
                     onMouseEnter={() => handleCellMouseEnter(idx, 0)}
                     onMouseUp={(e) => handleCellMouseUp(e, idx, 0)}
+                    onClick={() => handleCellClick(idx, 0)}
                     onContextMenu={(e) => handleCellContextMenu(e, idx, 0)}
-                    className={`border border-black text-left px-1.5 text-[8.5pt] align-top py-1 bg-amber-50/10 transition-all cursor-cell ${
-                      isCellSelected(idx, 0)
-                        ? "bg-emerald-50/30" 
-                        : ""
-                    }`}
+                    className={getCellClassName(idx, 0, "border border-black text-left px-1.5 text-[8.5pt] align-top py-1 bg-amber-50/10 transition-all cursor-text")}
                   >
                     <textarea
                       value={row.desc}
@@ -1608,7 +1764,6 @@ export default function QuotationBuilder() {
                       style={{ height: "auto", resize: "none" }}
                       placeholder="Merged Row (Section Title / Heading / Separator - Excel style)"
                       className="w-full text-left border-none outline-none bg-transparent px-0 text-slate-900 font-extrabold text-[8.5pt] leading-tight block overflow-hidden py-0.5 whitespace-pre-wrap break-all placeholder:text-slate-400 placeholder:italic no-print print:hidden"
-                      onClick={(e) => e.stopPropagation()}
                     />
                     <div className="hidden print:block whitespace-pre-wrap break-words text-slate-900 font-extrabold leading-tight py-0.5 text-[8.5pt]">
                       {row.desc || " "}
@@ -1621,12 +1776,9 @@ export default function QuotationBuilder() {
                       onMouseDown={(e) => handleCellMouseDown(e, idx, 0)}
                       onMouseEnter={() => handleCellMouseEnter(idx, 0)}
                       onMouseUp={(e) => handleCellMouseUp(e, idx, 0)}
+                      onClick={() => handleCellClick(idx, 0)}
                       onContextMenu={(e) => handleCellContextMenu(e, idx, 0)}
-                      className={`border border-black text-left px-1.5 text-[8.5pt] align-top py-1 break-all whitespace-normal transition-all cursor-cell ${
-                        isCellSelected(idx, 0)
-                          ? "bg-emerald-50/30" 
-                          : ""
-                      }`}
+                      className={getCellClassName(idx, 0, "border border-black text-left px-1.5 text-[8.5pt] align-top py-1 break-all whitespace-normal transition-all cursor-text")}
                     >
                       <textarea
                         value={row.desc}
@@ -1658,7 +1810,6 @@ export default function QuotationBuilder() {
                         rows={1}
                         style={{ height: "auto", resize: "none" }}
                         className="w-full text-left border-none outline-none bg-transparent px-0 text-slate-800 text-[8.5pt] leading-tight block overflow-hidden py-0.5 whitespace-pre-wrap break-all no-print print:hidden"
-                        onClick={(e) => e.stopPropagation()}
                       />
                       <div className="hidden print:block whitespace-pre-wrap break-words text-slate-900 leading-tight py-0.5 text-[8.5pt]">
                         {row.desc || " "}
@@ -1668,12 +1819,9 @@ export default function QuotationBuilder() {
                       onMouseDown={(e) => handleCellMouseDown(e, idx, 1)}
                       onMouseEnter={() => handleCellMouseEnter(idx, 1)}
                       onMouseUp={(e) => handleCellMouseUp(e, idx, 1)}
+                      onClick={() => handleCellClick(idx, 1)}
                       onContextMenu={(e) => handleCellContextMenu(e, idx, 1)}
-                      className={`border border-black text-center font-mono text-[9pt] align-top py-1 transition-all cursor-cell ${
-                        isCellSelected(idx, 1)
-                          ? "bg-emerald-50/30" 
-                          : ""
-                      }`}
+                      className={getCellClassName(idx, 1, "border border-black text-center font-mono text-[9pt] align-top py-1 transition-all cursor-text")}
                     >
                       <textarea
                         value={row.qty}
@@ -1695,7 +1843,6 @@ export default function QuotationBuilder() {
                         className={`w-full text-center border-none outline-none bg-transparent px-0 font-mono text-slate-800 align-top overflow-hidden py-0.5 whitespace-pre-wrap break-all no-print print:hidden ${
                           row.qty.length > 6 ? "text-[7.5pt]" : "text-[9pt]"
                         }`}
-                        onClick={(e) => e.stopPropagation()}
                       />
                       <div className="hidden print:block whitespace-pre-wrap break-words text-center font-mono text-slate-900 py-0.5 text-[9pt]">
                         {row.qty || " "}
@@ -1705,12 +1852,9 @@ export default function QuotationBuilder() {
                       onMouseDown={(e) => handleCellMouseDown(e, idx, 2)}
                       onMouseEnter={() => handleCellMouseEnter(idx, 2)}
                       onMouseUp={(e) => handleCellMouseUp(e, idx, 2)}
+                      onClick={() => handleCellClick(idx, 2)}
                       onContextMenu={(e) => handleCellContextMenu(e, idx, 2)}
-                      className={`border border-black text-center text-[9pt] align-top py-1 transition-all cursor-cell ${
-                        isCellSelected(idx, 2)
-                          ? "bg-emerald-50/30" 
-                          : ""
-                      }`}
+                      className={getCellClassName(idx, 2, "border border-black text-center text-[9pt] align-top py-1 transition-all cursor-text")}
                     >
                       <textarea
                         value={row.unit}
@@ -1732,7 +1876,6 @@ export default function QuotationBuilder() {
                         className={`w-full text-center border-none outline-none bg-transparent px-0 text-slate-800 align-top overflow-hidden py-0.5 whitespace-pre-wrap break-all no-print print:hidden ${
                           row.unit.length > 6 ? "text-[7.5pt]" : "text-[9pt]"
                         }`}
-                        onClick={(e) => e.stopPropagation()}
                       />
                       <div className="hidden print:block whitespace-pre-wrap break-words text-center text-slate-900 py-0.5 text-[9pt]">
                         {row.unit || " "}
@@ -1742,12 +1885,9 @@ export default function QuotationBuilder() {
                       onMouseDown={(e) => handleCellMouseDown(e, idx, 3)}
                       onMouseEnter={() => handleCellMouseEnter(idx, 3)}
                       onMouseUp={(e) => handleCellMouseUp(e, idx, 3)}
+                      onClick={() => handleCellClick(idx, 3)}
                       onContextMenu={(e) => handleCellContextMenu(e, idx, 3)}
-                      className={`border border-black text-center font-mono text-[9pt] align-top py-1 transition-all cursor-cell ${
-                        isCellSelected(idx, 3)
-                          ? "bg-emerald-50/30" 
-                          : ""
-                      }`}
+                      className={getCellClassName(idx, 3, "border border-black text-center font-mono text-[9pt] align-top py-1 transition-all cursor-text")}
                     >
                       <textarea
                         value={row.price}
@@ -1769,7 +1909,6 @@ export default function QuotationBuilder() {
                         className={`w-full text-center border-none outline-none bg-transparent px-0 font-mono text-slate-800 align-top overflow-hidden py-0.5 whitespace-pre-wrap break-all no-print print:hidden ${
                           row.price.length > 8 ? "text-[7.5pt]" : "text-[9pt]"
                         }`}
-                        onClick={(e) => e.stopPropagation()}
                       />
                       <div className="hidden print:block whitespace-pre-wrap break-words text-center font-mono text-slate-900 py-0.5 text-[9pt]">
                         {row.price || " "}
@@ -1782,12 +1921,9 @@ export default function QuotationBuilder() {
                   onMouseDown={(e) => handleCellMouseDown(e, idx, 4)}
                   onMouseEnter={() => handleCellMouseEnter(idx, 4)}
                   onMouseUp={(e) => handleCellMouseUp(e, idx, 4)}
+                  onClick={() => handleCellClick(idx, 4)}
                   onContextMenu={(e) => handleCellContextMenu(e, idx, 4)}
-                  className={`border border-black text-right pr-2 font-mono text-[9pt] font-semibold text-slate-800 align-top py-1 transition-all cursor-cell ${
-                    isCellSelected(idx, 4)
-                      ? "bg-emerald-50/30" 
-                      : ""
-                  }`}
+                  className={getCellClassName(idx, 4, "border border-black text-right pr-2 font-mono text-[9pt] font-semibold text-slate-800 align-top py-1 transition-all cursor-pointer")}
                 >
                   {row.isMerged ? (
                     <span className="text-slate-400 italic text-[7.5pt]">-</span>
@@ -2244,10 +2380,10 @@ export default function QuotationBuilder() {
             </>
           )}
 
-          {/* Section: Merge/Unmerge */}
+          {/* Section: Merge/Unmerge — acts on the full drag-selected range if one exists */}
           <button 
             onClick={() => {
-              toggleMergeRow(contextMenu.rowIndex);
+              toggleMergeSelectedRange();
               setContextMenu(null);
             }}
             className="w-full text-left px-3.5 py-1.5 hover:bg-slate-100 flex items-center justify-between font-bold"
@@ -2255,9 +2391,14 @@ export default function QuotationBuilder() {
             <div className="flex items-center gap-2.5">
               <Heading className="h-3.5 w-3.5 text-emerald-600" />
               <span>
-                {rows[contextMenu.rowIndex]?.isMerged 
-                  ? "Unmerge / Split Columns" 
-                  : "Merge Columns (Heading Row)"}
+                {hasRangeSelection()
+                  ? (rows.slice(
+                      Math.min(selectionStart!.rowIndex, selectionEnd!.rowIndex),
+                      Math.max(selectionStart!.rowIndex, selectionEnd!.rowIndex) + 1
+                    ).some(r => r.isMerged) ? "Unmerge Selected Rows" : "Merge Selected Rows")
+                  : (rows[contextMenu.rowIndex]?.isMerged 
+                      ? "Unmerge / Split Columns" 
+                      : "Merge Columns (Heading Row)")}
               </span>
             </div>
             <span className="text-[9px] text-slate-400 font-mono">⌘M</span>
