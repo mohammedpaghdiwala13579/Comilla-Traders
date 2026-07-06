@@ -1350,6 +1350,14 @@ export default function QuotationBuilder() {
     XLSX.writeFile(wb, filename);
   };
 
+  // --- DIRECT DOWNLOAD HANDLER (Quick Download) ---
+  const handleQuickDownload = () => {
+    const identifier = docType === "invoice" ? (invoiceNo || "NEW") : (challanNo || "NEW");
+    const prefix = docType === "invoice" ? "Invoice" : "Quotation";
+    const filename = `${prefix}_${identifier.replace(/[\/\\?%*:|"<>\s]/g, "_")}.xlsx`;
+    downloadExcel(filename);
+  };
+
   const handleSaveClick = () => {
     // Generate default filename
     const identifier = docType === "invoice" ? (invoiceNo || "NEW") : (challanNo || "NEW");
@@ -1574,12 +1582,23 @@ export default function QuotationBuilder() {
             )}
           </button>
           
+          {/* DOWNLOAD BUTTON - Direct download to device */}
+          <button 
+            onClick={handleQuickDownload} 
+            className="bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-[10px] py-1 px-3 rounded-md shadow-sm hover:shadow transition-all cursor-pointer flex items-center gap-1.5"
+            title="Download Excel file directly to your device"
+          >
+            <Download className="h-3.5 w-3.5" />
+            <span>DOWNLOAD</span>
+          </button>
+          
           <button 
             onClick={handleSaveClick} 
-            className="bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-[10px] py-1 px-2.5 rounded-md shadow-sm hover:shadow transition-all cursor-pointer flex items-center gap-1"
+            className="bg-blue-600 hover:bg-blue-700 text-white font-bold text-[10px] py-1 px-2.5 rounded-md shadow-sm hover:shadow transition-all cursor-pointer flex items-center gap-1"
+            title="Save Excel with custom options"
           >
-            <Download className="h-3 w-3" />
-            <span className="hidden sm:inline">EXCEL</span>
+            <Save className="h-3 w-3" />
+            <span className="hidden sm:inline">SAVE AS</span>
           </button>
           
           <button 
@@ -1634,8 +1653,11 @@ export default function QuotationBuilder() {
               <button onClick={saveCurrentDocToApp} className="w-full text-left px-3 py-1 hover:bg-slate-100 flex items-center gap-2 text-[10px] text-slate-700 font-bold">
                 <Save className="h-3 w-3 text-slate-400" /> Save to Cloud
               </button>
+              <button onClick={handleQuickDownload} className="w-full text-left px-3 py-1 hover:bg-slate-100 flex items-center gap-2 text-[10px] text-slate-700 font-bold">
+                <Download className="h-3 w-3 text-emerald-600" /> Download Excel
+              </button>
               <button onClick={handleSaveClick} className="w-full text-left px-3 py-1 hover:bg-slate-100 flex items-center gap-2 text-[10px] text-slate-700 font-bold">
-                <Download className="h-3 w-3 text-slate-400" /> Download Excel
+                <Save className="h-3 w-3 text-blue-600" /> Save As...
               </button>
               <button onClick={handlePrint} className="w-full text-left px-3 py-1 hover:bg-slate-100 flex items-center gap-2 text-[10px] text-slate-700 font-bold border-t border-slate-100">
                 <Printer className="h-3 w-3 text-slate-400" /> Print / PDF
@@ -1663,20 +1685,20 @@ export default function QuotationBuilder() {
           {/* Right-aligned Quick-access Buttons */}
           <div className="ml-auto flex items-center gap-1">
             <button 
-              onClick={saveCurrentDocToApp}
-              title="Save to Cloud Database"
+              onClick={handleQuickDownload}
+              title="Download Excel file directly to your device"
               className="px-1.5 py-0.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 hover:text-emerald-800 rounded-md transition-all cursor-pointer flex items-center gap-0.5 font-bold text-[8px] shadow-3xs"
             >
-              <Save className="h-2.5 w-2.5" />
-              <span className="hidden sm:inline">SAVE</span>
+              <Download className="h-2.5 w-2.5" />
+              <span className="hidden sm:inline">DOWNLOAD</span>
             </button>
             <button 
               onClick={handleSaveClick}
-              title="Download Excel (.xlsx)"
+              title="Save Excel with custom filename and location"
               className="px-1.5 py-0.5 bg-blue-50 hover:bg-blue-100 text-blue-700 hover:text-blue-800 rounded-md transition-all cursor-pointer flex items-center gap-0.5 font-bold text-[8px] shadow-3xs"
             >
-              <Download className="h-2.5 w-2.5" />
-              <span className="hidden sm:inline">EXCEL</span>
+              <Save className="h-2.5 w-2.5" />
+              <span className="hidden sm:inline">SAVE AS</span>
             </button>
             <button 
               onClick={handlePrint}
