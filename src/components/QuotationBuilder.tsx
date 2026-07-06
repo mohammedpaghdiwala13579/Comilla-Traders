@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import * as XLSX from "xlsx";
-import { Download, Printer, Calendar, Save, Trash2, Plus, History, Check, RefreshCw, FileText, Copy, FilePlus } from "lucide-react";
+import { Download, Printer, Calendar, Save, Trash2, Plus, History, Check, RefreshCw, FileText, Copy, FilePlus, MoveUp, MoveDown, Heading } from "lucide-react";
 import { db } from "../lib/firebase";
 import { collection, doc, setDoc, deleteDoc, onSnapshot, query, orderBy } from "firebase/firestore";
 
@@ -11,6 +11,7 @@ interface QuotationRow {
   unit: string;
   price: string;
   amount: number;
+  isMerged?: boolean;
 }
 
 interface SavedDocument {
@@ -191,7 +192,8 @@ export default function QuotationBuilder() {
       qty: String(r.qty ?? ""),
       unit: String(r.unit ?? ""),
       price: String(r.price ?? ""),
-      amount: Number(r.amount) || 0
+      amount: Number(r.amount) || 0,
+      isMerged: Boolean(r.isMerged ?? false)
     }));
 
     const docData: SavedDocument = {
@@ -412,7 +414,8 @@ export default function QuotationBuilder() {
         qty: String(r.qty ?? ""),
         unit: String(r.unit ?? ""),
         price: String(r.price ?? ""),
-        amount: Number(r.amount) || 0
+        amount: Number(r.amount) || 0,
+        isMerged: Boolean(r.isMerged ?? false)
       }));
 
       const docData: SavedDocument = {
@@ -515,6 +518,7 @@ export default function QuotationBuilder() {
         unit: "",
         price: "",
         amount: 0,
+        isMerged: false,
       },
     ]);
   };
@@ -523,6 +527,99 @@ export default function QuotationBuilder() {
     setRows((prevRows) => {
       if (prevRows.length <= 1) return prevRows;
       return prevRows.slice(0, -1);
+    });
+  };
+
+  const insertRow = (index: number, position: 'above' | 'below') => {
+    setRows((prevRows) => {
+      const updated = [...prevRows];
+      const newRow: QuotationRow = {
+        sl: 0,
+        desc: "",
+        qty: "",
+        unit: "",
+        price: "",
+        amount: 0,
+        isMerged: false,
+      };
+      const insertAt = position === 'above' ? index : index + 1;
+      updated.splice(insertAt, 0, newRow);
+      return updated.map((r, i) => ({
+        ...r,
+        sl: i + 1
+      }));
+    });
+  };
+
+  const deleteSpecificRow = (index: number) => {
+    setRows((prevRows) => {
+      if (prevRows.length <= 1) {
+        return [{
+          sl: 1,
+          desc: "",
+          qty: "",
+          unit: "",
+          price: "",
+          amount: 0,
+          isMerged: false,
+        }];
+      }
+      const updated = prevRows.filter((_, i) => i !== index);
+      return updated.map((r, i) => ({
+        ...r,
+        sl: i + 1
+      }));
+    });
+  };
+
+  const clearSpecificRow = (index: number) => {
+    setRows((prevRows) => {
+      const updated = [...prevRows];
+      updated[index] = {
+        sl: index + 1,
+        desc: "",
+        qty: "",
+        unit: "",
+        price: "",
+        amount: 0,
+        isMerged: false,
+      };
+      return updated;
+    });
+  };
+
+  const toggleMergeRow = (index: number) => {
+    setRows((prevRows) => {
+      const updated = [...prevRows];
+      const target = { ...updated[index] };
+      target.isMerged = !target.isMerged;
+      if (target.isMerged) {
+        target.qty = "";
+        target.unit = "";
+        target.price = "";
+        target.amount = 0;
+      }
+      updated[index] = target;
+      return updated;
+    });
+  };
+
+  const moveRow = (index: number, direction: 'up' | 'down') => {
+    setRows((prevRows) => {
+      if (direction === 'up' && index === 0) return prevRows;
+      if (direction === 'down' && index === prevRows.length - 1) return prevRows;
+
+      const updated = [...prevRows];
+      const swapIndex = direction === 'up' ? index - 1 : index + 1;
+      
+      const temp = updated[index];
+      updated[index] = updated[swapIndex];
+      updated[swapIndex] = temp;
+
+      return updated.map((r, i) => ({
+        ...r,
+        sl: i + 1
+      }));
     });
   };
 
@@ -791,27 +888,46 @@ export default function QuotationBuilder() {
               unit: "",
               price: "",
               amount: 0,
+              isMerged: false,
             });
           }
 
           const targetRow = { ...updated[rIndex] };
 
-          // Loop through each copied column
-          cols.forEach((cellValue, cOffset) => {
-            const cIndex = startColIndex + cOffset;
+          // Smart Excel Merged Cell Detection:
+          // If the pasted row has description text, but ALL other columns in the pasted data
+          // (such as qty, unit, price) are either non-existent or completely empty,
+          // then this represents a merged cell in Excel! We automatically mark isMerged = true.
+          const hasDesc = cols[0] && cols[0].trim() !== "";
+          const hasOtherCols = cols.length > 1;
+          const otherColsEmpty = hasOtherCols && cols.slice(1).every(c => !c || c.trim() === "");
+          const isMergedInExcel = hasDesc && (!hasOtherCols || otherColsEmpty) && startColIndex === 0;
+
+          if (isMergedInExcel) {
+            targetRow.isMerged = true;
+            targetRow.desc = cols[0];
+            targetRow.qty = "";
+            targetRow.unit = "";
+            targetRow.price = "";
+            targetRow.amount = 0;
+          } else {
+            targetRow.isMerged = false; // Reset merge state if normal columns are pasted
             
-            // Map column index to field:
-            // 0: desc, 1: qty, 2: unit, 3: price
-            if (cIndex === 0) {
-              targetRow.desc = cellValue;
-            } else if (cIndex === 1) {
-              targetRow.qty = cellValue;
-            } else if (cIndex === 2) {
-              targetRow.unit = cellValue;
-            } else if (cIndex === 3) {
-              targetRow.price = cellValue;
-            }
-          });
+            // Loop through each copied column
+            cols.forEach((cellValue, cOffset) => {
+              const cIndex = startColIndex + cOffset;
+              
+              if (cIndex === 0) {
+                targetRow.desc = cellValue;
+              } else if (cIndex === 1) {
+                targetRow.qty = cellValue;
+              } else if (cIndex === 2) {
+                targetRow.unit = cellValue;
+              } else if (cIndex === 3) {
+                targetRow.price = cellValue;
+              }
+            });
+          }
 
           // Re-calculate row amount
           const q = parseFloat(String(targetRow.qty || "")) || 0;
@@ -862,14 +978,25 @@ export default function QuotationBuilder() {
     data.push(["SL", "Description of Marine Items / Spare Parts", "Qty", "Unit", "Price", "Amount"]);
 
     rows.forEach((row, idx) => {
-      data.push([
-        (idx + 1).toString(),
-        row.desc,
-        row.qty,
-        row.unit,
-        row.price,
-        row.amount > 0 ? row.amount.toLocaleString("en-US", { minimumFractionDigits: 2 }) : "0.00"
-      ]);
+      if (row.isMerged) {
+        data.push([
+          (idx + 1).toString(),
+          row.desc,
+          "",
+          "",
+          "",
+          "-"
+        ]);
+      } else {
+        data.push([
+          (idx + 1).toString(),
+          row.desc,
+          row.qty,
+          row.unit,
+          row.price,
+          row.amount > 0 ? row.amount.toLocaleString("en-US", { minimumFractionDigits: 2 }) : "0.00"
+        ]);
+      }
     });
 
     data.push([]);
@@ -1167,8 +1294,11 @@ export default function QuotationBuilder() {
                         type="text" 
                         value={messers}
                         onChange={(e) => setMessers(e.target.value)}
-                        className="w-full border-b border-dotted border-slate-400 focus:border-black font-bold text-[9.5pt] outline-none bg-transparent py-0.5"
+                        className="w-full border-b border-dotted border-slate-400 focus:border-black font-bold text-[9.5pt] outline-none bg-transparent py-0.5 no-print print:hidden"
                       />
+                      <div className="hidden print:block font-bold text-[9.5pt] border-b border-dotted border-black min-h-[20px] py-0.5 break-words whitespace-pre-wrap leading-tight">
+                        {messers || " "}
+                      </div>
                     </div>
                     <div>
                       <label className="block text-[7.5pt] font-extrabold text-slate-700 uppercase tracking-wider mb-0.5">Address:</label>
@@ -1176,8 +1306,11 @@ export default function QuotationBuilder() {
                         rows={2}
                         value={address}
                         onChange={(e) => setAddress(e.target.value)}
-                        className="w-full border-b border-dotted border-slate-400 focus:border-black text-[9pt] outline-none bg-transparent resize-none leading-tight py-0.5"
+                        className="w-full border-b border-dotted border-slate-400 focus:border-black text-[9pt] outline-none bg-transparent resize-none leading-tight py-0.5 no-print print:hidden"
                       />
+                      <div className="hidden print:block text-[9pt] border-b border-dotted border-black min-h-[40px] py-0.5 break-words whitespace-pre-wrap leading-tight">
+                        {address || " "}
+                      </div>
                     </div>
                   </div>
 
@@ -1303,112 +1436,213 @@ export default function QuotationBuilder() {
           <thead>
             <tr className="bg-slate-50 text-[8pt]">
               <th className="w-[4%] border border-black py-1 text-center font-bold">SL</th>
-              <th className="w-[54%] border border-black py-1 text-left px-2 font-bold">Description</th>
+              <th className="w-[44%] border border-black py-1 text-left px-2 font-bold">Description</th>
               <th className="w-[8%] border border-black py-1 text-center font-bold">Qty</th>
-              <th className="w-[12%] border border-black py-1 text-center font-bold">Unit</th>
+              <th className="w-[22%] border border-black py-1 text-center font-bold">Unit</th>
               <th className="w-[10%] border border-black py-1 text-center font-bold">Price</th>
               <th className="w-[12%] border border-black py-1 text-center font-bold">Amount</th>
+              <th className="w-[90px] border border-black py-1 text-center font-bold no-print print:hidden bg-slate-100 text-slate-700">Actions</th>
             </tr>
           </thead>
           <tbody>
             {rows.map((row, idx) => (
-              <tr key={row.sl} className="group hover:bg-slate-50/50">
+              <tr key={row.sl} className={`group hover:bg-slate-50/50 ${row.isMerged ? "bg-amber-50/10 font-bold" : ""}`}>
                 <td className="border border-black text-center font-mono text-[8.5pt] align-top py-1">
                   {idx + 1}
                 </td>
-                <td className="border border-black text-left px-1.5 text-[8.5pt] align-top py-1 break-all whitespace-normal">
-                  <textarea
-                    value={row.desc}
-                    onChange={(e) => {
-                      handleRowChange(idx, "desc", e.target.value);
-                      e.target.style.height = "auto";
-                      e.target.style.height = `${e.target.scrollHeight}px`;
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" && !e.shiftKey) {
-                        e.preventDefault();
-                        const targetElement = document.querySelector(
-                          `[data-row="${idx + 1}"][data-col="0"]`
-                        ) as HTMLElement | null;
-                        if (targetElement) {
-                          targetElement.focus();
-                        }
-                      } else {
-                        handleKeyDown(e, idx, 0);
-                      }
-                    }}
-                    onPaste={(e) => handlePaste(e, idx, 0)}
-                    data-row={idx}
-                    data-col={0}
-                    rows={1}
-                    style={{ height: "auto", resize: "none" }}
-                    className="w-full text-left border-none outline-none bg-transparent px-0 text-slate-800 text-[8.5pt] leading-tight block overflow-hidden py-0.5 whitespace-pre-wrap break-all"
-                  />
-                </td>
-                <td className="border border-black text-center font-mono text-[9pt] align-top py-1">
-                  <textarea
-                    value={row.qty}
-                    onChange={(e) => {
-                      handleRowChange(idx, "qty", e.target.value);
-                      e.target.style.height = "auto";
-                      e.target.style.height = `${e.target.scrollHeight}px`;
-                    }}
-                    onKeyDown={(e) => handleKeyDown(e, idx, 1)}
-                    onPaste={(e) => handlePaste(e, idx, 1)}
-                    data-row={idx}
-                    data-col={1}
-                    rows={1}
-                    style={{ height: "auto", resize: "none" }}
-                    className={`w-full text-center border-none outline-none bg-transparent px-0 font-mono text-slate-800 align-top overflow-hidden py-0.5 whitespace-pre-wrap break-all ${
-                      row.qty.length > 6 ? "text-[7.5pt]" : "text-[9pt]"
-                    }`}
-                  />
-                </td>
-                <td className="border border-black text-center text-[9pt] align-top py-1">
-                  <textarea
-                    value={row.unit}
-                    onChange={(e) => {
-                      handleRowChange(idx, "unit", e.target.value);
-                      e.target.style.height = "auto";
-                      e.target.style.height = `${e.target.scrollHeight}px`;
-                    }}
-                    onKeyDown={(e) => handleKeyDown(e, idx, 2)}
-                    onPaste={(e) => handlePaste(e, idx, 2)}
-                    data-row={idx}
-                    data-col={2}
-                    rows={1}
-                    style={{ height: "auto", resize: "none" }}
-                    className={`w-full text-center border-none outline-none bg-transparent px-0 text-slate-800 align-top overflow-hidden py-0.5 whitespace-pre-wrap break-all ${
-                      row.unit.length > 6 ? "text-[7.5pt]" : "text-[9pt]"
-                    }`}
-                  />
-                </td>
-                <td className="border border-black text-center font-mono text-[9pt] align-top py-1">
-                  <textarea
-                    value={row.price}
-                    onChange={(e) => {
-                      handleRowChange(idx, "price", e.target.value);
-                      e.target.style.height = "auto";
-                      e.target.style.height = `${e.target.scrollHeight}px`;
-                    }}
-                    onKeyDown={(e) => handleKeyDown(e, idx, 3)}
-                    onPaste={(e) => handlePaste(e, idx, 3)}
-                    data-row={idx}
-                    data-col={3}
-                    rows={1}
-                    style={{ height: "auto", resize: "none" }}
-                    className={`w-full text-center border-none outline-none bg-transparent px-0 font-mono text-slate-800 align-top overflow-hidden py-0.5 whitespace-pre-wrap break-all ${
-                      row.price.length > 8 ? "text-[7.5pt]" : "text-[9pt]"
-                    }`}
-                  />
-                </td>
+                
+                {row.isMerged ? (
+                  /* Merged Description across Description, Qty, Unit, Price columns */
+                  <td colSpan={4} className="border border-black text-left px-1.5 text-[8.5pt] align-top py-1 bg-amber-50/10">
+                    <textarea
+                      value={row.desc}
+                      onChange={(e) => {
+                        handleRowChange(idx, "desc", e.target.value);
+                        e.target.style.height = "auto";
+                        e.target.style.height = `${e.target.scrollHeight}px`;
+                      }}
+                      onKeyDown={(e) => handleKeyDown(e, idx, 0)}
+                      onPaste={(e) => handlePaste(e, idx, 0)}
+                      data-row={idx}
+                      data-col={0}
+                      rows={1}
+                      style={{ height: "auto", resize: "none" }}
+                      placeholder="Merged Row (Section Title / Heading / Separator - Excel style)"
+                      className="w-full text-left border-none outline-none bg-transparent px-0 text-slate-900 font-extrabold text-[8.5pt] leading-tight block overflow-hidden py-0.5 whitespace-pre-wrap break-all placeholder:text-slate-400 placeholder:italic no-print print:hidden"
+                    />
+                    <div className="hidden print:block whitespace-pre-wrap break-words text-slate-900 font-extrabold leading-tight py-0.5 text-[8.5pt]">
+                      {row.desc || " "}
+                    </div>
+                  </td>
+                ) : (
+                  /* Normal Columns */
+                  <>
+                    <td className="border border-black text-left px-1.5 text-[8.5pt] align-top py-1 break-all whitespace-normal">
+                      <textarea
+                        value={row.desc}
+                        onChange={(e) => {
+                          handleRowChange(idx, "desc", e.target.value);
+                          e.target.style.height = "auto";
+                          e.target.style.height = `${e.target.scrollHeight}px`;
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" && !e.shiftKey) {
+                            e.preventDefault();
+                            const targetElement = document.querySelector(
+                              `[data-row="${idx + 1}"][data-col="0"]`
+                            ) as HTMLElement | null;
+                            if (targetElement) {
+                              targetElement.focus();
+                            }
+                          } else {
+                            handleKeyDown(e, idx, 0);
+                          }
+                        }}
+                        onPaste={(e) => handlePaste(e, idx, 0)}
+                        data-row={idx}
+                        data-col={0}
+                        rows={1}
+                        style={{ height: "auto", resize: "none" }}
+                        className="w-full text-left border-none outline-none bg-transparent px-0 text-slate-800 text-[8.5pt] leading-tight block overflow-hidden py-0.5 whitespace-pre-wrap break-all no-print print:hidden"
+                      />
+                      <div className="hidden print:block whitespace-pre-wrap break-words text-slate-900 leading-tight py-0.5 text-[8.5pt]">
+                        {row.desc || " "}
+                      </div>
+                    </td>
+                    <td className="border border-black text-center font-mono text-[9pt] align-top py-1">
+                      <textarea
+                        value={row.qty}
+                        onChange={(e) => {
+                          handleRowChange(idx, "qty", e.target.value);
+                          e.target.style.height = "auto";
+                          e.target.style.height = `${e.target.scrollHeight}px`;
+                        }}
+                        onKeyDown={(e) => handleKeyDown(e, idx, 1)}
+                        onPaste={(e) => handlePaste(e, idx, 1)}
+                        data-row={idx}
+                        data-col={1}
+                        rows={1}
+                        style={{ height: "auto", resize: "none" }}
+                        className={`w-full text-center border-none outline-none bg-transparent px-0 font-mono text-slate-800 align-top overflow-hidden py-0.5 whitespace-pre-wrap break-all no-print print:hidden ${
+                          row.qty.length > 6 ? "text-[7.5pt]" : "text-[9pt]"
+                        }`}
+                      />
+                      <div className="hidden print:block whitespace-pre-wrap break-words text-center font-mono text-slate-900 py-0.5 text-[9pt]">
+                        {row.qty || " "}
+                      </div>
+                    </td>
+                    <td className="border border-black text-center text-[9pt] align-top py-1">
+                      <textarea
+                        value={row.unit}
+                        onChange={(e) => {
+                          handleRowChange(idx, "unit", e.target.value);
+                          e.target.style.height = "auto";
+                          e.target.style.height = `${e.target.scrollHeight}px`;
+                        }}
+                        onKeyDown={(e) => handleKeyDown(e, idx, 2)}
+                        onPaste={(e) => handlePaste(e, idx, 2)}
+                        data-row={idx}
+                        data-col={2}
+                        rows={1}
+                        style={{ height: "auto", resize: "none" }}
+                        className={`w-full text-center border-none outline-none bg-transparent px-0 text-slate-800 align-top overflow-hidden py-0.5 whitespace-pre-wrap break-all no-print print:hidden ${
+                          row.unit.length > 6 ? "text-[7.5pt]" : "text-[9pt]"
+                        }`}
+                      />
+                      <div className="hidden print:block whitespace-pre-wrap break-words text-center text-slate-900 py-0.5 text-[9pt]">
+                        {row.unit || " "}
+                      </div>
+                    </td>
+                    <td className="border border-black text-center font-mono text-[9pt] align-top py-1">
+                      <textarea
+                        value={row.price}
+                        onChange={(e) => {
+                          handleRowChange(idx, "price", e.target.value);
+                          e.target.style.height = "auto";
+                          e.target.style.height = `${e.target.scrollHeight}px`;
+                        }}
+                        onKeyDown={(e) => handleKeyDown(e, idx, 3)}
+                        onPaste={(e) => handlePaste(e, idx, 3)}
+                        data-row={idx}
+                        data-col={3}
+                        rows={1}
+                        style={{ height: "auto", resize: "none" }}
+                        className={`w-full text-center border-none outline-none bg-transparent px-0 font-mono text-slate-800 align-top overflow-hidden py-0.5 whitespace-pre-wrap break-all no-print print:hidden ${
+                          row.price.length > 8 ? "text-[7.5pt]" : "text-[9pt]"
+                        }`}
+                      />
+                      <div className="hidden print:block whitespace-pre-wrap break-words text-center font-mono text-slate-900 py-0.5 text-[9pt]">
+                        {row.price || " "}
+                      </div>
+                    </td>
+                  </>
+                )}
+
                 <td className="border border-black text-right pr-2 font-mono text-[9pt] font-semibold text-slate-800 align-top py-1">
-                  <div className={`whitespace-normal break-all leading-tight ${
-                    row.amount > 0 && row.amount.toLocaleString("en-US", { minimumFractionDigits: 2 }).length > 12
-                      ? "text-[7.5pt]"
-                      : "text-[9pt]"
-                  }`}>
-                    {row.amount > 0 ? row.amount.toLocaleString("en-US", { minimumFractionDigits: 2 }) : "0.00"}
+                  {row.isMerged ? (
+                    <span className="text-slate-400 italic text-[7.5pt]">-</span>
+                  ) : (
+                    <div className={`whitespace-normal break-all leading-tight ${
+                      row.amount > 0 && row.amount.toLocaleString("en-US", { minimumFractionDigits: 2 }).length > 12
+                        ? "text-[7.5pt]"
+                        : "text-[9pt]"
+                    }`}>
+                      {row.amount > 0 ? row.amount.toLocaleString("en-US", { minimumFractionDigits: 2 }) : "0.00"}
+                    </div>
+                  )}
+                </td>
+
+                {/* Actions column (screen-only) */}
+                <td className="border border-black py-1 no-print print:hidden bg-slate-50/50 align-middle">
+                  <div className="flex items-center justify-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => toggleMergeRow(idx)}
+                      title={row.isMerged ? "Split / Unmerge Columns" : "Merge Columns (Excel style header row)"}
+                      className={`p-1 rounded cursor-pointer transition-all border ${
+                        row.isMerged 
+                          ? "bg-amber-100 border-amber-300 hover:bg-amber-200 text-amber-800" 
+                          : "bg-white border-slate-200 hover:bg-slate-100 text-slate-600"
+                      }`}
+                    >
+                      <Heading className="h-3 w-3" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => insertRow(idx, 'below')}
+                      title="Insert row below"
+                      className="p-1 rounded bg-white border border-slate-200 hover:bg-indigo-50 hover:border-indigo-200 text-indigo-600 cursor-pointer transition-all"
+                    >
+                      <Plus className="h-3 w-3" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => deleteSpecificRow(idx)}
+                      title="Delete row"
+                      className="p-1 rounded bg-white border border-slate-200 hover:bg-rose-50 hover:border-rose-200 text-rose-600 cursor-pointer transition-all"
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </button>
+                    <div className="flex flex-col gap-0.5 opacity-40 hover:opacity-100 transition-opacity">
+                      <button
+                        type="button"
+                        onClick={() => moveRow(idx, 'up')}
+                        disabled={idx === 0}
+                        title="Move row up"
+                        className="p-0.5 rounded bg-white border border-slate-100 hover:bg-slate-100 disabled:opacity-30 disabled:pointer-events-none text-slate-700 cursor-pointer transition-all"
+                      >
+                        <MoveUp className="h-2.5 w-2.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => moveRow(idx, 'down')}
+                        disabled={idx === rows.length - 1}
+                        title="Move row down"
+                        className="p-0.5 rounded bg-white border border-slate-100 hover:bg-slate-100 disabled:opacity-30 disabled:pointer-events-none text-slate-700 cursor-pointer transition-all"
+                      >
+                        <MoveDown className="h-2.5 w-2.5" />
+                      </button>
+                    </div>
                   </div>
                 </td>
               </tr>
