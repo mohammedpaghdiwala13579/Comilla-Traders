@@ -1,10 +1,8 @@
 import React, { useState, useEffect, useRef } from "react";
 import * as XLSX from "xlsx";
-import { Download, Printer, Calendar, Save, Trash2, Plus, History, Check, RefreshCw, FileText, Copy, FilePlus, MoveUp, MoveDown, Heading, Undo, Redo, Search, Bold, Italic, AlignLeft, AlignCenter, AlignRight, ChevronDown, File } from "lucide-react";
+import { Download, Printer, Calendar, Save, Trash2, Plus, History, Check, RefreshCw, FileText, Copy, FilePlus, MoveUp, MoveDown, Heading, Undo, Redo, Search, Bold, Italic, AlignLeft, AlignCenter, AlignRight, ChevronDown } from "lucide-react";
 import { db } from "../lib/firebase";
 import { collection, doc, setDoc, deleteDoc, onSnapshot, query, orderBy } from "firebase/firestore";
-import html2canvas from "html2canvas";
-import jsPDF from "jspdf";
 
 interface QuotationRow {
   sl: number;
@@ -115,7 +113,6 @@ export default function QuotationBuilder() {
 
   const dateRef = useRef<HTMLInputElement>(null);
   const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const sheetRef = useRef<HTMLDivElement>(null);
 
   const triggerDatePicker = () => {
     if (dateRef.current) {
@@ -1353,72 +1350,6 @@ export default function QuotationBuilder() {
     XLSX.writeFile(wb, filename);
   };
 
-  // --- DOWNLOAD PDF FUNCTION ---
-  const downloadPDF = async () => {
-    const element = sheetRef.current;
-    if (!element) {
-      console.error("Sheet element not found");
-      return;
-    }
-
-    // Show loading state
-    setSaveStatus("saving");
-
-    try {
-      // Wait for any pending renders
-      await new Promise(resolve => setTimeout(resolve, 100));
-
-      // Capture the sheet as canvas
-      const canvas = await html2canvas(element, {
-        scale: 2,
-        useCORS: true,
-        allowTaint: true,
-        logging: false,
-        backgroundColor: "#ffffff",
-        width: element.scrollWidth,
-        height: element.scrollHeight,
-        windowWidth: element.scrollWidth,
-        windowHeight: element.scrollHeight,
-        onclone: (document) => {
-          // Ensure all textareas are shown in print mode
-          const textareas = document.querySelectorAll("textarea");
-          textareas.forEach((ta) => {
-            ta.style.display = "block";
-          });
-        }
-      });
-
-      const imgData = canvas.toDataURL("image/png");
-      
-      // Calculate PDF dimensions
-      const imgWidth = 210; // A4 width in mm
-      const imgHeight = (canvas.height / canvas.width) * imgWidth;
-      
-      const pdf = new jsPDF({
-        orientation: imgHeight > imgWidth ? "portrait" : "landscape",
-        unit: "mm",
-        format: "a4"
-      });
-
-      // Add image to PDF
-      pdf.addImage(imgData, "PNG", 0, 0, imgWidth, imgHeight);
-      
-      // Generate filename
-      const identifier = docType === "invoice" ? (invoiceNo || "NEW") : (challanNo || "NEW");
-      const prefix = docType === "invoice" ? "Invoice" : "Quotation";
-      const filename = `${prefix}_${identifier.replace(/[\/\\?%*:|"<>\s]/g, "_")}.pdf`;
-      
-      pdf.save(filename);
-      
-      setSaveStatus("saved");
-      setTimeout(() => setSaveStatus("idle"), 3000);
-    } catch (error) {
-      console.error("Error generating PDF:", error);
-      setSaveStatus("error");
-      setTimeout(() => setSaveStatus("idle"), 3000);
-    }
-  };
-
   // --- DIRECT DOWNLOAD HANDLER (Quick Download) ---
   const handleQuickDownload = () => {
     const identifier = docType === "invoice" ? (invoiceNo || "NEW") : (challanNo || "NEW");
@@ -1660,17 +1591,6 @@ export default function QuotationBuilder() {
             <Download className="h-3.5 w-3.5" />
             <span>DOWNLOAD</span>
           </button>
-
-          {/* PDF DOWNLOAD BUTTON */}
-          <button 
-            onClick={downloadPDF} 
-            disabled={saveStatus === "saving"}
-            className="bg-red-600 hover:bg-red-700 text-white font-bold text-[10px] py-1 px-3 rounded-md shadow-sm hover:shadow transition-all cursor-pointer flex items-center gap-1.5 disabled:opacity-85"
-            title="Download as PDF"
-          >
-            <File className="h-3.5 w-3.5" />
-            <span>PDF</span>
-          </button>
           
           <button 
             onClick={handleSaveClick} 
@@ -1736,9 +1656,6 @@ export default function QuotationBuilder() {
               <button onClick={handleQuickDownload} className="w-full text-left px-3 py-1 hover:bg-slate-100 flex items-center gap-2 text-[10px] text-slate-700 font-bold">
                 <Download className="h-3 w-3 text-emerald-600" /> Download Excel
               </button>
-              <button onClick={downloadPDF} className="w-full text-left px-3 py-1 hover:bg-slate-100 flex items-center gap-2 text-[10px] text-slate-700 font-bold">
-                <File className="h-3 w-3 text-red-600" /> Download PDF
-              </button>
               <button onClick={handleSaveClick} className="w-full text-left px-3 py-1 hover:bg-slate-100 flex items-center gap-2 text-[10px] text-slate-700 font-bold">
                 <Save className="h-3 w-3 text-blue-600" /> Save As...
               </button>
@@ -1776,14 +1693,6 @@ export default function QuotationBuilder() {
               <span className="hidden sm:inline">DOWNLOAD</span>
             </button>
             <button 
-              onClick={downloadPDF}
-              title="Download as PDF"
-              className="px-1.5 py-0.5 bg-red-50 hover:bg-red-100 text-red-700 hover:text-red-800 rounded-md transition-all cursor-pointer flex items-center gap-0.5 font-bold text-[8px] shadow-3xs"
-            >
-              <File className="h-2.5 w-2.5" />
-              <span className="hidden sm:inline">PDF</span>
-            </button>
-            <button 
               onClick={handleSaveClick}
               title="Save Excel with custom filename and location"
               className="px-1.5 py-0.5 bg-blue-50 hover:bg-blue-100 text-blue-700 hover:text-blue-800 rounded-md transition-all cursor-pointer flex items-center gap-0.5 font-bold text-[8px] shadow-3xs"
@@ -1804,7 +1713,7 @@ export default function QuotationBuilder() {
       </div>
 
       {/* Standard A4 Printable Sheet */}
-      <div ref={sheetRef} className="sheet relative w-full max-w-[210mm] sm:w-[210mm] print:w-[210mm] min-h-[297mm] bg-white p-4 sm:p-[12mm] print:p-[12mm] shadow-lg box-border z-10 mx-auto">
+      <div className="sheet relative w-full max-w-[210mm] sm:w-[210mm] print:w-[210mm] min-h-[297mm] bg-white p-4 sm:p-[12mm] print:p-[12mm] shadow-lg box-border z-10 mx-auto">
         {/* Aligned Watermark Logo inside the Document Sheet */}
         <div className="absolute inset-0 pointer-events-none flex items-center justify-center overflow-hidden z-0 select-none">
           <img 
