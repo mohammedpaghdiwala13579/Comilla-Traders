@@ -57,9 +57,10 @@ export default function QuotationBuilder() {
   const [currentDocId, setCurrentDocId] = useState<string | null>(null);
   const [autoSaveEnabled, setAutoSaveEnabled] = useState<boolean>(() => {
     if (typeof window !== "undefined") {
-      return localStorage.getItem("comilla_autosave_enabled") === "true";
+      const val = localStorage.getItem("comilla_autosave_enabled");
+      return val === null ? true : val === "true";
     }
-    return false;
+    return true;
   });
   const [lastSavedTime, setLastSavedTime] = useState<string | null>(null);
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
@@ -81,6 +82,7 @@ export default function QuotationBuilder() {
   });
 
   const dateRef = useRef<HTMLInputElement>(null);
+  const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const triggerDatePicker = () => {
     if (dateRef.current) {
@@ -117,6 +119,14 @@ export default function QuotationBuilder() {
       const docs: SavedDocument[] = [];
       snapshot.forEach((doc) => {
         const data = doc.data();
+        const docRows = (data.rows || []).map((r: any) => ({
+          sl: Number(r.sl) || 0,
+          desc: String(r.desc ?? ""),
+          qty: String(r.qty ?? ""),
+          unit: String(r.unit ?? ""),
+          price: String(r.price ?? ""),
+          amount: Number(r.amount) || 0,
+        }));
         docs.push({
           id: doc.id,
           name: data.name || "",
@@ -132,7 +142,7 @@ export default function QuotationBuilder() {
           poNumber: data.poNumber || "",
           vatPercent: data.vatPercent ?? 15,
           transportation: data.transportation ?? 0,
-          rows: data.rows || []
+          rows: docRows
         });
       });
       setSavedDocs(docs);
@@ -157,6 +167,11 @@ export default function QuotationBuilder() {
 
   // Save current sheet to Firestore (manual)
   const saveCurrentDocToApp = async (customName?: string) => {
+    if (autoSaveTimerRef.current) {
+      clearTimeout(autoSaveTimerRef.current);
+      autoSaveTimerRef.current = null;
+    }
+
     const now = new Date().toISOString();
     
     let docIdentifier = "";
@@ -170,22 +185,31 @@ export default function QuotationBuilder() {
 
     const docId = currentDocId || generateUUID();
 
+    const sanitizedRows = rows.map(r => ({
+      sl: Number(r.sl) || 0,
+      desc: String(r.desc ?? ""),
+      qty: String(r.qty ?? ""),
+      unit: String(r.unit ?? ""),
+      price: String(r.price ?? ""),
+      amount: Number(r.amount) || 0
+    }));
+
     const docData: SavedDocument = {
       id: docId,
-      name: nameToUse,
-      createdAt: savedDocs.find(d => d.id === currentDocId)?.createdAt || now,
-      updatedAt: now,
-      docType,
-      dateVal,
-      messers,
-      address,
-      invoiceNo,
-      challanNo,
-      requisitionNo,
-      poNumber,
-      vatPercent,
-      transportation,
-      rows: rows.map(r => ({ ...r }))
+      name: String(nameToUse || "Unnamed Document"),
+      createdAt: String(savedDocs.find(d => d.id === currentDocId)?.createdAt || now),
+      updatedAt: String(now),
+      docType: docType as "quotation" | "invoice",
+      dateVal: String(dateVal || ""),
+      messers: String(messers || ""),
+      address: String(address || ""),
+      invoiceNo: String(invoiceNo || ""),
+      challanNo: String(challanNo || ""),
+      requisitionNo: String(requisitionNo || ""),
+      poNumber: String(poNumber || ""),
+      vatPercent: Number(vatPercent) ?? 15,
+      transportation: Number(transportation) ?? 0,
+      rows: sanitizedRows
     };
 
     setSaveStatus("saving");
@@ -200,6 +224,11 @@ export default function QuotationBuilder() {
       setTimeout(() => setSaveStatus("idle"), 3000);
     } catch (e) {
       console.error("Error saving document to Firestore:", e);
+      try {
+        localStorage.setItem(`comilla_backup_${docId}`, JSON.stringify(docData));
+      } catch (err) {
+        console.error("Local backup also failed:", err);
+      }
       setSaveStatus("error");
       setTimeout(() => setSaveStatus("idle"), 3000);
     }
@@ -306,8 +335,9 @@ export default function QuotationBuilder() {
   useEffect(() => {
     if (!autoSaveEnabled) return;
 
-    // Only auto-save if the user has added some content
+    // Only auto-save if the user has added some content or is editing an existing doc
     const hasAnyContent = 
+      currentDocId !== null ||
       messers.trim() !== "" || 
       address.trim() !== "" || 
       invoiceNo.trim() !== "" || 
@@ -330,24 +360,34 @@ export default function QuotationBuilder() {
       const defaultName = `${docType === "quotation" ? "Quotation" : "Invoice"}${docIdentifier} - ${messers || "Unnamed Client"} (${dateVal})`;
       const nameToUse = savedDocs.find(d => d.id === currentDocId)?.name || defaultName;
 
+      const sanitizedRows = rows.map(r => ({
+        sl: Number(r.sl) || 0,
+        desc: String(r.desc ?? ""),
+        qty: String(r.qty ?? ""),
+        unit: String(r.unit ?? ""),
+        price: String(r.price ?? ""),
+        amount: Number(r.amount) || 0
+      }));
+
       const docData: SavedDocument = {
         id: docId,
-        name: nameToUse,
-        createdAt: savedDocs.find(d => d.id === docId)?.createdAt || now,
-        updatedAt: now,
-        docType,
-        dateVal,
-        messers,
-        address,
-        invoiceNo,
-        challanNo,
-        requisitionNo,
-        poNumber,
-        vatPercent,
-        transportation,
-        rows: rows.map(r => ({ ...r }))
+        name: String(nameToUse || "Unnamed Document"),
+        createdAt: String(savedDocs.find(d => d.id === docId)?.createdAt || now),
+        updatedAt: String(now),
+        docType: docType as "quotation" | "invoice",
+        dateVal: String(dateVal || ""),
+        messers: String(messers || ""),
+        address: String(address || ""),
+        invoiceNo: String(invoiceNo || ""),
+        challanNo: String(challanNo || ""),
+        requisitionNo: String(requisitionNo || ""),
+        poNumber: String(poNumber || ""),
+        vatPercent: Number(vatPercent) ?? 15,
+        transportation: Number(transportation) ?? 0,
+        rows: sanitizedRows
       };
 
+      setSaveStatus("saving");
       try {
         await setDoc(doc(db, "documents", docId), docData);
         if (!currentDocId) {
@@ -355,12 +395,26 @@ export default function QuotationBuilder() {
         }
         const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
         setLastSavedTime(timeStr);
+        setSaveStatus("saved");
+        setTimeout(() => setSaveStatus("idle"), 3000);
       } catch (e) {
         console.error("Auto-save to Firestore failed:", e);
+        try {
+          localStorage.setItem(`comilla_backup_${docId}`, JSON.stringify(docData));
+        } catch (err) {
+          console.error("Local backup also failed:", err);
+        }
+        setSaveStatus("error");
+        setTimeout(() => setSaveStatus("idle"), 3000);
       }
     }, 1500);
 
-    return () => clearTimeout(timer);
+    autoSaveTimerRef.current = timer;
+
+    return () => {
+      clearTimeout(timer);
+      autoSaveTimerRef.current = null;
+    };
   }, [
     docType,
     dateVal,
@@ -396,8 +450,8 @@ export default function QuotationBuilder() {
       }
 
       // Calculate amount
-      const q = parseFloat(targetRow.qty) || 0;
-      const p = parseFloat(targetRow.price.replace(/,/g, "")) || 0;
+      const q = parseFloat(String(targetRow.qty || "")) || 0;
+      const p = parseFloat(String(targetRow.price || "").replace(/,/g, "")) || 0;
       targetRow.amount = q * p;
 
       updated[index] = targetRow;

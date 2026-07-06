@@ -304,18 +304,15 @@
     display: table !important;
     width: 100% !important;
     table-layout: fixed !important;
+    border-collapse: collapse !important;
+    border-spacing: 0 !important;
     box-sizing: border-box !important;
     border: none !important;
     background-color: transparent !important;
-    min-height: 40px !important;
-    height: auto !important;
     margin-top: 10px !important;
     padding: 0 !important;
-    border-radius: 0px !important;
     margin-bottom: 0 !important;
     overflow: visible !important;
-    border-collapse: collapse !important;
-    border-spacing: 0 !important;
   }
 
   body.print-quotation-only .print-outer-layout-table,
@@ -337,8 +334,22 @@
     width: 50% !important;
     margin: 0 !important;
     padding: 0 !important;
-    height: 100% !important;
     background-color: #ffffff !important;
+  }
+
+  body.print-quotation-only .total-container > div.flex-row {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: stretch !important;
+    height: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  body.print-quotation-only .total-container > div.flex-col {
+    display: flex !important;
+    flex-direction: column !important;
+    height: 100% !important;
+    box-sizing: border-box !important;
   }
 
   body.print-quotation-only .total-lbl {
@@ -354,24 +365,44 @@
     padding-right: 8px !important;
     box-sizing: border-box !important;
     margin: 0 !important;
-    height: 100% !important;
     background-color: #f8fafc !important;
     font-size: 8pt !important;
   }
 
+  body.print-quotation-only .total-container > div.flex-row .total-lbl {
+    height: 100% !important;
+  }
+
+  body.print-quotation-only .total-container > div.flex-col .total-lbl {
+    height: auto !important;
+    padding-top: 6px !important;
+    padding-bottom: 6px !important;
+  }
+
   body.print-quotation-only .total-val {
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
     box-sizing: border-box !important;
     word-break: break-all !important;
     white-space: normal !important;
     padding: 2px 8px !important;
     line-height: 1.1 !important;
     margin: 0 !important;
-    height: 100% !important;
     flex-grow: 1 !important;
     font-size: 9.5pt !important;
+  }
+
+  body.print-quotation-only .total-container > div.flex-row .total-val {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    height: 100% !important;
+  }
+
+  body.print-quotation-only .total-container > div.flex-col .total-val {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-end !important;
+    padding-right: 12px !important;
+    height: auto !important;
   }
 
   body.print-quotation-only .amount-words-container {
@@ -382,12 +413,8 @@
     border-color: #000000 !important;
     box-sizing: border-box !important;
     width: 50% !important;
-    display: flex !important;
-    flex-direction: column !important;
-    justify-content: center !important;
     padding: 4px 8px !important;
     margin: 0 !important;
-    height: 100% !important;
     background-color: #f8fafc !important;
   }
 
