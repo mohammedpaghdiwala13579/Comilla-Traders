@@ -11,7 +11,17 @@ interface QuotationRow {
   unit: string;
   price: string;
   amount: number;
-  isMerged?: boolean;
+}
+
+// A merged region is a rectangular block of cells that renders as one cell.
+// Columns: -1 = SL, 0 = Description, 1 = Qty, 2 = Unit, 3 = Price, 4 = Amount.
+// startRow/endRow/startCol/endCol are all inclusive.
+interface MergedRegion {
+  id: string;
+  startRow: number;
+  endRow: number;
+  startCol: number;
+  endCol: number;
 }
 
 interface SavedDocument {
@@ -30,6 +40,7 @@ interface SavedDocument {
   vatPercent: number;
   transportation: number;
   rows: QuotationRow[];
+  mergedRegions: MergedRegion[];
 }
 
 export default function QuotationBuilder() {
@@ -81,6 +92,9 @@ export default function QuotationBuilder() {
     }
     return initialRows;
   });
+
+  // Rectangular cell-merge regions, independent of row/column content.
+  const [mergedRegions, setMergedRegions] = useState<MergedRegion[]>([]);
 
   const [selectedRowIndex, setSelectedRowIndex] = useState<number>(0);
   const [selectedCell, setSelectedCell] = useState<{ rowIndex: number; colIndex: number } | null>({ rowIndex: 0, colIndex: 0 });
@@ -143,6 +157,15 @@ export default function QuotationBuilder() {
           price: String(r.price ?? ""),
           amount: Number(r.amount) || 0,
         }));
+        const docMergedRegions: MergedRegion[] = Array.isArray(data.mergedRegions)
+          ? data.mergedRegions.map((m: any) => ({
+              id: String(m.id ?? `region-${Math.random().toString(36).substring(2, 9)}`),
+              startRow: Number(m.startRow) || 0,
+              endRow: Number(m.endRow) || 0,
+              startCol: Number(m.startCol) ?? 0,
+              endCol: Number(m.endCol) ?? 0,
+            }))
+          : [];
         docs.push({
           id: doc.id,
           name: data.name || "",
@@ -158,7 +181,8 @@ export default function QuotationBuilder() {
           poNumber: data.poNumber || "",
           vatPercent: data.vatPercent ?? 15,
           transportation: data.transportation ?? 0,
-          rows: docRows
+          rows: docRows,
+          mergedRegions: docMergedRegions
         });
       });
       setSavedDocs(docs);
@@ -207,8 +231,15 @@ export default function QuotationBuilder() {
       qty: String(r.qty ?? ""),
       unit: String(r.unit ?? ""),
       price: String(r.price ?? ""),
-      amount: Number(r.amount) || 0,
-      isMerged: Boolean(r.isMerged ?? false)
+      amount: Number(r.amount) || 0
+    }));
+
+    const sanitizedMergedRegions = mergedRegions.map(m => ({
+      id: String(m.id),
+      startRow: Number(m.startRow) || 0,
+      endRow: Number(m.endRow) || 0,
+      startCol: Number(m.startCol) ?? 0,
+      endCol: Number(m.endCol) ?? 0
     }));
 
     const docData: SavedDocument = {
@@ -226,7 +257,8 @@ export default function QuotationBuilder() {
       poNumber: String(poNumber || ""),
       vatPercent: Number(vatPercent) ?? 15,
       transportation: Number(transportation) ?? 0,
-      rows: sanitizedRows
+      rows: sanitizedRows,
+      mergedRegions: sanitizedMergedRegions
     };
 
     setSaveStatus("saving");
@@ -280,6 +312,7 @@ export default function QuotationBuilder() {
       });
     }
     setRows(initialRows);
+    setMergedRegions([]);
     setCurrentDocId(null);
     setLastSavedTime(null);
   };
@@ -297,6 +330,7 @@ export default function QuotationBuilder() {
     setVatPercent(doc.vatPercent ?? 15);
     setTransportation(doc.transportation ?? 0);
     setRows(doc.rows.map(r => ({ ...r })));
+    setMergedRegions((doc.mergedRegions || []).map(m => ({ ...m })));
     setCurrentDocId(doc.id);
     setLastSavedTime(null);
 
@@ -371,7 +405,6 @@ export default function QuotationBuilder() {
         vatPercent,
         transportation,
         rows: rows.map(r => ({
-          id: r.id,
           sl: r.sl,
           desc: r.desc,
           qty: r.qty,
@@ -379,6 +412,7 @@ export default function QuotationBuilder() {
           price: r.price,
           amount: r.amount
         })),
+        mergedRegions: mergedRegions.map(m => ({ ...m })),
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
       };
@@ -429,8 +463,15 @@ export default function QuotationBuilder() {
         qty: String(r.qty ?? ""),
         unit: String(r.unit ?? ""),
         price: String(r.price ?? ""),
-        amount: Number(r.amount) || 0,
-        isMerged: Boolean(r.isMerged ?? false)
+        amount: Number(r.amount) || 0
+      }));
+
+      const sanitizedMergedRegions = mergedRegions.map(m => ({
+        id: String(m.id),
+        startRow: Number(m.startRow) || 0,
+        endRow: Number(m.endRow) || 0,
+        startCol: Number(m.startCol) ?? 0,
+        endCol: Number(m.endCol) ?? 0
       }));
 
       const docData: SavedDocument = {
@@ -448,7 +489,8 @@ export default function QuotationBuilder() {
         poNumber: String(poNumber || ""),
         vatPercent: Number(vatPercent) ?? 15,
         transportation: Number(transportation) ?? 0,
-        rows: sanitizedRows
+        rows: sanitizedRows,
+        mergedRegions: sanitizedMergedRegions
       };
 
       setSaveStatus("saving");
@@ -491,6 +533,7 @@ export default function QuotationBuilder() {
     vatPercent,
     transportation,
     rows,
+    mergedRegions,
     autoSaveEnabled,
     currentDocId
   ]);
@@ -551,7 +594,6 @@ export default function QuotationBuilder() {
         unit: "",
         price: "",
         amount: 0,
-        isMerged: false,
       },
     ]);
   };
@@ -564,6 +606,8 @@ export default function QuotationBuilder() {
   };
 
   const insertRow = (index: number, position: 'above' | 'below') => {
+    const insertAt = position === 'above' ? index : index + 1;
+
     setRows((prevRows) => {
       const updated = [...prevRows];
       const newRow: QuotationRow = {
@@ -573,15 +617,27 @@ export default function QuotationBuilder() {
         unit: "",
         price: "",
         amount: 0,
-        isMerged: false,
       };
-      const insertAt = position === 'above' ? index : index + 1;
       updated.splice(insertAt, 0, newRow);
       return updated.map((r, i) => ({
         ...r,
         sl: i + 1
       }));
     });
+
+    // Shift any merged region that starts at or after the insertion point down by one row
+    // so existing merges keep pointing at the same logical rows.
+    setMergedRegions((prevRegions) =>
+      prevRegions.map((region) => {
+        if (region.startRow >= insertAt) {
+          return { ...region, startRow: region.startRow + 1, endRow: region.endRow + 1 };
+        }
+        if (region.endRow >= insertAt) {
+          return { ...region, endRow: region.endRow + 1 };
+        }
+        return region;
+      })
+    );
   };
 
   const deleteSpecificRow = (index: number) => {
@@ -594,7 +650,6 @@ export default function QuotationBuilder() {
           unit: "",
           price: "",
           amount: 0,
-          isMerged: false,
         }];
       }
       const updated = prevRows.filter((_, i) => i !== index);
@@ -603,6 +658,19 @@ export default function QuotationBuilder() {
         sl: i + 1
       }));
     });
+
+    // Shift/shrink merged regions to account for the removed row; drop any region
+    // that no longer spans at least one row after the deletion.
+    setMergedRegions((prevRegions) =>
+      prevRegions
+        .map((region) => {
+          let { startRow, endRow } = region;
+          if (startRow > index) startRow -= 1;
+          if (endRow >= index) endRow -= 1;
+          return { ...region, startRow, endRow };
+        })
+        .filter((region) => region.endRow >= region.startRow)
+    );
   };
 
   const clearSpecificRow = (index: number) => {
@@ -615,26 +683,170 @@ export default function QuotationBuilder() {
         unit: "",
         price: "",
         amount: 0,
-        isMerged: false,
       };
       return updated;
     });
   };
 
-  const toggleMergeRow = (index: number) => {
+  // Column labels used when collecting cell content into a merged cell's combined value,
+  // and when clearing the covered cells' underlying fields after a merge.
+  const COLUMN_FIELD_BY_INDEX: Record<number, "desc" | "qty" | "unit" | "price" | null> = {
+    [-1]: null, // SL is derived (row position), never has stored text
+    0: "desc",
+    1: "qty",
+    2: "unit",
+    3: "price",
+    4: null, // Amount is derived (qty * price), never stored as free text
+  };
+
+  // Returns the merged region covering (rowIndex, colIndex), if any.
+  const getMergeRegionAt = (rowIndex: number, colIndex: number): MergedRegion | undefined => {
+    return mergedRegions.find(
+      (m) =>
+        rowIndex >= m.startRow &&
+        rowIndex <= m.endRow &&
+        colIndex >= m.startCol &&
+        colIndex <= m.endCol
+    );
+  };
+
+  // Info a cell needs to render correctly under the merge model:
+  // - region: the covering region, if any
+  // - isAnchor: true if (rowIndex, colIndex) is the top-left cell of that region (the one that
+  //   actually renders content with colSpan/rowSpan); false if it's a covered cell that should
+  //   render nothing because the anchor's colSpan/rowSpan already occupies this grid position.
+  const getMergeInfo = (rowIndex: number, colIndex: number) => {
+    const region = getMergeRegionAt(rowIndex, colIndex);
+    if (!region) return { region: undefined, isAnchor: false };
+    const isAnchor = rowIndex === region.startRow && colIndex === region.startCol;
+    return { region, isAnchor };
+  };
+
+  const rangesOverlap = (a: MergedRegion, b: { startRow: number; endRow: number; startCol: number; endCol: number }) => {
+    return a.startRow <= b.endRow && a.endRow >= b.startRow && a.startCol <= b.endCol && a.endCol >= b.startCol;
+  };
+
+  // Merge the current drag/click selection into one cell. Content from every covered cell
+  // is concatenated into the anchor (top-left) cell so nothing is silently lost, and the
+  // now-covered cells' own fields are cleared since they're no longer independently editable.
+  const mergeSelectedRange = () => {
+    if (!selectionStart || !selectionEnd) return;
+
+    const startRow = Math.min(selectionStart.rowIndex, selectionEnd.rowIndex);
+    const endRow = Math.max(selectionStart.rowIndex, selectionEnd.rowIndex);
+    const startCol = Math.min(selectionStart.colIndex, selectionEnd.colIndex);
+    const endCol = Math.max(selectionStart.colIndex, selectionEnd.colIndex);
+
+    // A single cell isn't a "merge" — nothing to combine.
+    if (startRow === endRow && startCol === endCol) return;
+
+    const candidateRegion = { startRow, endRow, startCol, endCol };
+
+    // Refuse overlapping merges (same rule Excel follows): resolve the existing merge first.
+    const overlapping = mergedRegions.find((m) => rangesOverlap(m, candidateRegion));
+    if (overlapping) {
+      window.alert("Part of this selection is already merged. Unmerge it first, then try again.");
+      return;
+    }
+
+    // Collect text content from every covered cell (top-to-bottom, left-to-right) into the anchor.
     setRows((prevRows) => {
-      const updated = [...prevRows];
-      const target = { ...updated[index] };
-      target.isMerged = !target.isMerged;
-      if (target.isMerged) {
-        target.qty = "";
-        target.unit = "";
-        target.price = "";
-        target.amount = 0;
+      const updated = prevRows.map((r) => ({ ...r }));
+      const pieces: string[] = [];
+
+      for (let r = startRow; r <= endRow; r++) {
+        for (let c = startCol; c <= endCol; c++) {
+          const field = COLUMN_FIELD_BY_INDEX[c];
+          if (field && updated[r]) {
+            const val = String(updated[r][field] ?? "").trim();
+            if (val !== "") pieces.push(val);
+          }
+        }
       }
-      updated[index] = target;
+
+      const combined = pieces.join(" ");
+      const anchorField = COLUMN_FIELD_BY_INDEX[startCol];
+
+      for (let r = startRow; r <= endRow; r++) {
+        if (!updated[r]) continue;
+        for (let c = startCol; c <= endCol; c++) {
+          const field = COLUMN_FIELD_BY_INDEX[c];
+          if (!field) continue;
+          if (r === startRow && c === startCol) {
+            (updated[r] as any)[field] = combined;
+          } else {
+            (updated[r] as any)[field] = "";
+          }
+        }
+        // Recompute amount for every affected row since qty/price may have just been cleared or combined.
+        const q = parseFloat(String(updated[r].qty || "")) || 0;
+        const p = parseFloat(String(updated[r].price || "").replace(/,/g, "")) || 0;
+        updated[r].amount = q * p;
+      }
+
+      // If the anchor column isn't one of the free-text columns (e.g. merging just SL or Amount cells),
+      // there's nothing to combine textually, which is fine — the merge still applies visually.
+      void anchorField;
+
       return updated;
     });
+
+    const newRegion: MergedRegion = {
+      id: generateUUID(),
+      startRow,
+      endRow,
+      startCol,
+      endCol,
+    };
+    setMergedRegions((prev) => [...prev, newRegion]);
+
+    // Collapse selection down to the new anchor cell so the highlight matches the merged block.
+    setSelectionStart({ rowIndex: startRow, colIndex: startCol });
+    setSelectionEnd({ rowIndex: endRow, colIndex: endCol });
+    setSelectedCell({ rowIndex: startRow, colIndex: startCol });
+    setSelectedRowIndex(startRow);
+  };
+
+  // Remove whichever merged region covers (rowIndex, colIndex), restoring its cells to
+  // normal individually-editable state. Content stays wherever it currently sits (in the
+  // anchor cell) rather than being redistributed, since there's no reliable way to guess
+  // which of several original cells a combined value belongs back to.
+  const unmergeRegionAt = (rowIndex: number, colIndex: number) => {
+    const region = getMergeRegionAt(rowIndex, colIndex);
+    if (!region) return;
+    setMergedRegions((prev) => prev.filter((m) => m.id !== region.id));
+  };
+
+  // True if the current drag selection exactly matches the bounds of the given region
+  // (used to decide whether "toggle" should unmerge vs. attempt a fresh merge).
+  const hasRangeSelectionMatchingRegion = (region: MergedRegion) => {
+    if (!selectionStart || !selectionEnd) return false;
+    const startRow = Math.min(selectionStart.rowIndex, selectionEnd.rowIndex);
+    const endRow = Math.max(selectionStart.rowIndex, selectionEnd.rowIndex);
+    const startCol = Math.min(selectionStart.colIndex, selectionEnd.colIndex);
+    const endCol = Math.max(selectionStart.colIndex, selectionEnd.colIndex);
+    return (
+      startRow === region.startRow &&
+      endRow === region.endRow &&
+      startCol === region.startCol &&
+      endCol === region.endCol
+    );
+  };
+
+  // Merge if the current selection isn't already merged; unmerge if it is. Used by both the
+  // toolbar button and the context-menu item so either always does "the right thing next".
+  const toggleMergeSelectedRangeV2 = () => {
+    if (!selectionStart || !selectionEnd) return;
+    const { rowIndex, colIndex } = selectionStart;
+    const existing = getMergeRegionAt(rowIndex, colIndex);
+    if (existing && hasRangeSelectionMatchingRegion(existing)) {
+      unmergeRegionAt(rowIndex, colIndex);
+    } else if (existing) {
+      // Selection starts inside a merge but doesn't exactly match it — unmerge that region first.
+      unmergeRegionAt(rowIndex, colIndex);
+    } else {
+      mergeSelectedRange();
+    }
   };
 
   const moveRow = (index: number, direction: 'up' | 'down') => {
@@ -712,27 +924,6 @@ export default function QuotationBuilder() {
         }
       }
     }
-  };
-
-  const toggleMergeSelectedRange = () => {
-    if (!selectionStart || !selectionEnd) {
-      toggleMergeRow(safeSelectedRowIndex);
-      return;
-    }
-    
-    const minRow = Math.min(selectionStart.rowIndex, selectionEnd.rowIndex);
-    const maxRow = Math.max(selectionStart.rowIndex, selectionEnd.rowIndex);
-    
-    const anyMerged = rows.slice(minRow, maxRow + 1).some(r => r.isMerged);
-    
-    setRows((prevRows) => {
-      return prevRows.map((row, idx) => {
-        if (idx >= minRow && idx <= maxRow) {
-          return { ...row, isMerged: !anyMerged };
-        }
-        return row;
-      });
-    });
   };
 
   const getCellClassName = (rowIndex: number, colIndex: number, baseClasses: string) => {
@@ -1074,46 +1265,25 @@ export default function QuotationBuilder() {
               unit: "",
               price: "",
               amount: 0,
-              isMerged: false,
             });
           }
 
           const targetRow = { ...updated[rIndex] };
 
-          // Smart Excel Merged Cell Detection:
-          // If the pasted row has description text, but ALL other columns in the pasted data
-          // (such as qty, unit, price) are either non-existent or completely empty,
-          // then this represents a merged cell in Excel! We automatically mark isMerged = true.
-          const hasDesc = cols[0] && cols[0].trim() !== "";
-          const hasOtherCols = cols.length > 1;
-          const otherColsEmpty = hasOtherCols && cols.slice(1).every(c => !c || c.trim() === "");
-          const isMergedInExcel = hasDesc && (!hasOtherCols || otherColsEmpty) && startColIndex === 0;
-
-          if (isMergedInExcel) {
-            targetRow.isMerged = true;
-            targetRow.desc = cols[0];
-            targetRow.qty = "";
-            targetRow.unit = "";
-            targetRow.price = "";
-            targetRow.amount = 0;
-          } else {
-            targetRow.isMerged = false; // Reset merge state if normal columns are pasted
+          // Loop through each copied column
+          cols.forEach((cellValue, cOffset) => {
+            const cIndex = startColIndex + cOffset;
             
-            // Loop through each copied column
-            cols.forEach((cellValue, cOffset) => {
-              const cIndex = startColIndex + cOffset;
-              
-              if (cIndex === 0) {
-                targetRow.desc = cellValue;
-              } else if (cIndex === 1) {
-                targetRow.qty = cellValue;
-              } else if (cIndex === 2) {
-                targetRow.unit = cellValue;
-              } else if (cIndex === 3) {
-                targetRow.price = cellValue;
-              }
-            });
-          }
+            if (cIndex === 0) {
+              targetRow.desc = cellValue;
+            } else if (cIndex === 1) {
+              targetRow.qty = cellValue;
+            } else if (cIndex === 2) {
+              targetRow.unit = cellValue;
+            } else if (cIndex === 3) {
+              targetRow.price = cellValue;
+            }
+          });
 
           // Re-calculate row amount
           const q = parseFloat(String(targetRow.qty || "")) || 0;
@@ -1164,25 +1334,14 @@ export default function QuotationBuilder() {
     data.push(["SL", "Description of Marine Items / Spare Parts", "Qty", "Unit", "Price", "Amount"]);
 
     rows.forEach((row, idx) => {
-      if (row.isMerged) {
-        data.push([
-          (idx + 1).toString(),
-          row.desc,
-          "",
-          "",
-          "",
-          "-"
-        ]);
-      } else {
-        data.push([
-          (idx + 1).toString(),
-          row.desc,
-          row.qty,
-          row.unit,
-          row.price,
-          row.amount > 0 ? row.amount.toLocaleString("en-US", { minimumFractionDigits: 2 }) : "0.00"
-        ]);
-      }
+      data.push([
+        (idx + 1).toString(),
+        row.desc,
+        row.qty,
+        row.unit,
+        row.price,
+        row.amount > 0 ? row.amount.toLocaleString("en-US", { minimumFractionDigits: 2 }) : "0.00"
+      ]);
     });
 
     data.push([]);
@@ -1235,6 +1394,10 @@ export default function QuotationBuilder() {
   };
 
   const safeSelectedRowIndex = Math.max(0, Math.min(selectedRowIndex, rows.length - 1));
+
+  // Column configuration used to iterate real grid columns (-1 = SL ... 4 = Amount)
+  // when rendering the table with merge-aware colSpan/rowSpan.
+  const GRID_COLUMNS = [-1, 0, 1, 2, 3, 4];
 
   return (
     <div className="quotation-container relative min-h-screen flex flex-col items-center bg-[#f1f5f9] py-5 overflow-x-auto text-[#000] font-sans antialiased">
@@ -1425,21 +1588,20 @@ export default function QuotationBuilder() {
             </div>
           </div>
 
-          {/* Merge/Unmerge action for the current selection, replacing the old row-operations button cluster */}
+          {/* Merge/Unmerge action for the current cell-range selection (uses mergedRegions, not whole-row merge) */}
           <button
             type="button"
-            onClick={toggleMergeSelectedRange}
-            title="Merge or unmerge the currently selected cell(s) into a single heading row"
+            onClick={toggleMergeSelectedRangeV2}
+            title="Merge or unmerge the currently selected cell(s). Drag across cells first to select a range."
             className="ml-2 px-2 py-1 hover:bg-emerald-100 rounded-md cursor-pointer transition-all font-bold text-emerald-700 text-[11px] flex items-center gap-1.5 border border-emerald-200 bg-emerald-50"
           >
             <Heading className="h-3.5 w-3.5" />
             <span>
-              {hasRangeSelection()
-                ? (rows.slice(
-                    Math.min(selectionStart!.rowIndex, selectionEnd!.rowIndex),
-                    Math.max(selectionStart!.rowIndex, selectionEnd!.rowIndex) + 1
-                  ).some(r => r.isMerged) ? "Unmerge Selection" : "Merge Selection")
-                : (rows[safeSelectedRowIndex]?.isMerged ? "Unmerge Row" : "Merge Row")}
+              {(() => {
+                if (!selectionStart) return "Merge Cells";
+                const existing = getMergeRegionAt(selectionStart.rowIndex, selectionStart.colIndex);
+                return existing ? "Unmerge Cells" : "Merge Cells";
+              })()}
             </span>
           </button>
 
@@ -1710,233 +1872,250 @@ export default function QuotationBuilder() {
           <tbody>
             {rows.map((row, idx) => (
               <tr 
-                key={row.sl} 
+                key={idx} 
                 className={`group hover:bg-slate-50/50 transition-colors ${
-                  row.isMerged ? "bg-amber-50/10 font-bold" : ""
-                } ${
                   idx === safeSelectedRowIndex 
                     ? "bg-emerald-50/10" 
                     : ""
                 }`}
               >
-                <td 
-                  onMouseDown={(e) => handleCellMouseDown(e, idx, -1)}
-                  onMouseEnter={() => handleCellMouseEnter(idx, -1)}
-                  onMouseUp={(e) => handleCellMouseUp(e, idx, -1)}
-                  onClick={() => handleCellClick(idx, -1)}
-                  onContextMenu={(e) => handleCellContextMenu(e, idx, -1)}
-                  className={getCellClassName(idx, -1, `border border-black text-center font-mono text-[8.5pt] align-top py-1 transition-all cursor-pointer select-none ${
-                    idx === safeSelectedRowIndex
-                      ? "bg-emerald-50/30 text-slate-800"
-                      : "bg-slate-50/30 text-slate-800"
-                  }`)}
-                >
-                  {idx + 1}
-                </td>
-                
-                {row.isMerged ? (
-                  /* Merged Description across Description, Qty, Unit, Price columns */
-                  <td 
-                    colSpan={4} 
-                    onMouseDown={(e) => handleCellMouseDown(e, idx, 0)}
-                    onMouseEnter={() => handleCellMouseEnter(idx, 0)}
-                    onMouseUp={(e) => handleCellMouseUp(e, idx, 0)}
-                    onClick={() => handleCellClick(idx, 0)}
-                    onContextMenu={(e) => handleCellContextMenu(e, idx, 0)}
-                    className={getCellClassName(idx, 0, "border border-black text-left px-1.5 text-[8.5pt] align-top py-1 bg-amber-50/10 transition-all cursor-text")}
-                  >
-                    <textarea
-                      value={row.desc}
-                      onFocus={() => {
-                        setSelectedRowIndex(idx);
-                        setSelectedCell({ rowIndex: idx, colIndex: 0 });
-                      }}
-                      onChange={(e) => {
-                        handleRowChange(idx, "desc", e.target.value);
-                        e.target.style.height = "auto";
-                        e.target.style.height = `${e.target.scrollHeight}px`;
-                      }}
-                      onKeyDown={(e) => handleKeyDown(e, idx, 0)}
-                      onPaste={(e) => handlePaste(e, idx, 0)}
-                      data-row={idx}
-                      data-col={0}
-                      rows={1}
-                      style={{ height: "auto", resize: "none" }}
-                      placeholder="Merged Row (Section Title / Heading / Separator - Excel style)"
-                      className="w-full text-left border-none outline-none bg-transparent px-0 text-slate-900 font-extrabold text-[8.5pt] leading-tight block overflow-hidden py-0.5 whitespace-pre-wrap break-all placeholder:text-slate-400 placeholder:italic no-print print:hidden"
-                    />
-                    <div className="hidden print:block whitespace-pre-wrap break-words text-slate-900 font-extrabold leading-tight py-0.5 text-[8.5pt]">
-                      {row.desc || " "}
-                    </div>
-                  </td>
-                ) : (
-                  /* Normal Columns */
-                  <>
-                    <td 
-                      onMouseDown={(e) => handleCellMouseDown(e, idx, 0)}
-                      onMouseEnter={() => handleCellMouseEnter(idx, 0)}
-                      onMouseUp={(e) => handleCellMouseUp(e, idx, 0)}
-                      onClick={() => handleCellClick(idx, 0)}
-                      onContextMenu={(e) => handleCellContextMenu(e, idx, 0)}
-                      className={getCellClassName(idx, 0, "border border-black text-left px-1.5 text-[8.5pt] align-top py-1 break-all whitespace-normal transition-all cursor-text")}
-                    >
-                      <textarea
-                        value={row.desc}
-                        onFocus={() => {
-                          setSelectedRowIndex(idx);
-                          setSelectedCell({ rowIndex: idx, colIndex: 0 });
-                        }}
-                        onChange={(e) => {
-                          handleRowChange(idx, "desc", e.target.value);
-                          e.target.style.height = "auto";
-                          e.target.style.height = `${e.target.scrollHeight}px`;
-                        }}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter" && !e.shiftKey) {
-                            e.preventDefault();
-                            const targetElement = document.querySelector(
-                              `[data-row="${idx + 1}"][data-col="0"]`
-                            ) as HTMLElement | null;
-                            if (targetElement) {
-                              targetElement.focus();
-                            }
-                          } else {
-                            handleKeyDown(e, idx, 0);
-                          }
-                        }}
-                        onPaste={(e) => handlePaste(e, idx, 0)}
-                        data-row={idx}
-                        data-col={0}
-                        rows={1}
-                        style={{ height: "auto", resize: "none" }}
-                        className="w-full text-left border-none outline-none bg-transparent px-0 text-slate-800 text-[8.5pt] leading-tight block overflow-hidden py-0.5 whitespace-pre-wrap break-all no-print print:hidden"
-                      />
-                      <div className="hidden print:block whitespace-pre-wrap break-words text-slate-900 leading-tight py-0.5 text-[8.5pt]">
-                        {row.desc || " "}
-                      </div>
-                    </td>
-                    <td 
-                      onMouseDown={(e) => handleCellMouseDown(e, idx, 1)}
-                      onMouseEnter={() => handleCellMouseEnter(idx, 1)}
-                      onMouseUp={(e) => handleCellMouseUp(e, idx, 1)}
-                      onClick={() => handleCellClick(idx, 1)}
-                      onContextMenu={(e) => handleCellContextMenu(e, idx, 1)}
-                      className={getCellClassName(idx, 1, "border border-black text-center font-mono text-[9pt] align-top py-1 transition-all cursor-text")}
-                    >
-                      <textarea
-                        value={row.qty}
-                        onFocus={() => {
-                          setSelectedRowIndex(idx);
-                          setSelectedCell({ rowIndex: idx, colIndex: 1 });
-                        }}
-                        onChange={(e) => {
-                          handleRowChange(idx, "qty", e.target.value);
-                          e.target.style.height = "auto";
-                          e.target.style.height = `${e.target.scrollHeight}px`;
-                        }}
-                        onKeyDown={(e) => handleKeyDown(e, idx, 1)}
-                        onPaste={(e) => handlePaste(e, idx, 1)}
-                        data-row={idx}
-                        data-col={1}
-                        rows={1}
-                        style={{ height: "auto", resize: "none" }}
-                        className={`w-full text-center border-none outline-none bg-transparent px-0 font-mono text-slate-800 align-top overflow-hidden py-0.5 whitespace-pre-wrap break-all no-print print:hidden ${
-                          row.qty.length > 6 ? "text-[7.5pt]" : "text-[9pt]"
-                        }`}
-                      />
-                      <div className="hidden print:block whitespace-pre-wrap break-words text-center font-mono text-slate-900 py-0.5 text-[9pt]">
-                        {row.qty || " "}
-                      </div>
-                    </td>
-                    <td 
-                      onMouseDown={(e) => handleCellMouseDown(e, idx, 2)}
-                      onMouseEnter={() => handleCellMouseEnter(idx, 2)}
-                      onMouseUp={(e) => handleCellMouseUp(e, idx, 2)}
-                      onClick={() => handleCellClick(idx, 2)}
-                      onContextMenu={(e) => handleCellContextMenu(e, idx, 2)}
-                      className={getCellClassName(idx, 2, "border border-black text-center text-[9pt] align-top py-1 transition-all cursor-text")}
-                    >
-                      <textarea
-                        value={row.unit}
-                        onFocus={() => {
-                          setSelectedRowIndex(idx);
-                          setSelectedCell({ rowIndex: idx, colIndex: 2 });
-                        }}
-                        onChange={(e) => {
-                          handleRowChange(idx, "unit", e.target.value);
-                          e.target.style.height = "auto";
-                          e.target.style.height = `${e.target.scrollHeight}px`;
-                        }}
-                        onKeyDown={(e) => handleKeyDown(e, idx, 2)}
-                        onPaste={(e) => handlePaste(e, idx, 2)}
-                        data-row={idx}
-                        data-col={2}
-                        rows={1}
-                        style={{ height: "auto", resize: "none" }}
-                        className={`w-full text-center border-none outline-none bg-transparent px-0 text-slate-800 align-top overflow-hidden py-0.5 whitespace-pre-wrap break-all no-print print:hidden ${
-                          row.unit.length > 6 ? "text-[7.5pt]" : "text-[9pt]"
-                        }`}
-                      />
-                      <div className="hidden print:block whitespace-pre-wrap break-words text-center text-slate-900 py-0.5 text-[9pt]">
-                        {row.unit || " "}
-                      </div>
-                    </td>
-                    <td 
-                      onMouseDown={(e) => handleCellMouseDown(e, idx, 3)}
-                      onMouseEnter={() => handleCellMouseEnter(idx, 3)}
-                      onMouseUp={(e) => handleCellMouseUp(e, idx, 3)}
-                      onClick={() => handleCellClick(idx, 3)}
-                      onContextMenu={(e) => handleCellContextMenu(e, idx, 3)}
-                      className={getCellClassName(idx, 3, "border border-black text-center font-mono text-[9pt] align-top py-1 transition-all cursor-text")}
-                    >
-                      <textarea
-                        value={row.price}
-                        onFocus={() => {
-                          setSelectedRowIndex(idx);
-                          setSelectedCell({ rowIndex: idx, colIndex: 3 });
-                        }}
-                        onChange={(e) => {
-                          handleRowChange(idx, "price", e.target.value);
-                          e.target.style.height = "auto";
-                          e.target.style.height = `${e.target.scrollHeight}px`;
-                        }}
-                        onKeyDown={(e) => handleKeyDown(e, idx, 3)}
-                        onPaste={(e) => handlePaste(e, idx, 3)}
-                        data-row={idx}
-                        data-col={3}
-                        rows={1}
-                        style={{ height: "auto", resize: "none" }}
-                        className={`w-full text-center border-none outline-none bg-transparent px-0 font-mono text-slate-800 align-top overflow-hidden py-0.5 whitespace-pre-wrap break-all no-print print:hidden ${
-                          row.price.length > 8 ? "text-[7.5pt]" : "text-[9pt]"
-                        }`}
-                      />
-                      <div className="hidden print:block whitespace-pre-wrap break-words text-center font-mono text-slate-900 py-0.5 text-[9pt]">
-                        {row.price || " "}
-                      </div>
-                    </td>
-                  </>
-                )}
+                {GRID_COLUMNS.map((colIndex) => {
+                  const { region, isAnchor } = getMergeInfo(idx, colIndex);
 
-                <td 
-                  onMouseDown={(e) => handleCellMouseDown(e, idx, 4)}
-                  onMouseEnter={() => handleCellMouseEnter(idx, 4)}
-                  onMouseUp={(e) => handleCellMouseUp(e, idx, 4)}
-                  onClick={() => handleCellClick(idx, 4)}
-                  onContextMenu={(e) => handleCellContextMenu(e, idx, 4)}
-                  className={getCellClassName(idx, 4, "border border-black text-right pr-2 font-mono text-[9pt] font-semibold text-slate-800 align-top py-1 transition-all cursor-pointer")}
-                >
-                  {row.isMerged ? (
-                    <span className="text-slate-400 italic text-[7.5pt]">-</span>
-                  ) : (
-                    <div className={`whitespace-normal break-all leading-tight ${
-                      row.amount > 0 && row.amount.toLocaleString("en-US", { minimumFractionDigits: 2 }).length > 12
-                        ? "text-[7.5pt]"
-                        : "text-[9pt]"
-                    }`}>
-                      {row.amount > 0 ? row.amount.toLocaleString("en-US", { minimumFractionDigits: 2 }) : "0.00"}
-                    </div>
-                  )}
-                </td>
+                  // Covered (non-anchor) cell of a merged region: render nothing, the
+                  // anchor cell's colSpan/rowSpan already occupies this grid position.
+                  if (region && !isAnchor) {
+                    return null;
+                  }
+
+                  const colSpan = region ? region.endCol - region.startCol + 1 : 1;
+                  const rowSpan = region ? region.endRow - region.startRow + 1 : 1;
+
+                  // --- SL column ---
+                  if (colIndex === -1) {
+                    return (
+                      <td
+                        key={colIndex}
+                        colSpan={colSpan}
+                        rowSpan={rowSpan}
+                        onMouseDown={(e) => handleCellMouseDown(e, idx, -1)}
+                        onMouseEnter={() => handleCellMouseEnter(idx, -1)}
+                        onMouseUp={(e) => handleCellMouseUp(e, idx, -1)}
+                        onClick={() => handleCellClick(idx, -1)}
+                        onContextMenu={(e) => handleCellContextMenu(e, idx, -1)}
+                        className={getCellClassName(idx, -1, `border border-black text-center font-mono text-[8.5pt] align-top py-1 transition-all cursor-pointer select-none ${
+                          idx === safeSelectedRowIndex
+                            ? "bg-emerald-50/30 text-slate-800"
+                            : "bg-slate-50/30 text-slate-800"
+                        }`)}
+                      >
+                        {idx + 1}
+                      </td>
+                    );
+                  }
+
+                  // --- Description column ---
+                  if (colIndex === 0) {
+                    return (
+                      <td
+                        key={colIndex}
+                        colSpan={colSpan}
+                        rowSpan={rowSpan}
+                        onMouseDown={(e) => handleCellMouseDown(e, idx, 0)}
+                        onMouseEnter={() => handleCellMouseEnter(idx, 0)}
+                        onMouseUp={(e) => handleCellMouseUp(e, idx, 0)}
+                        onClick={() => handleCellClick(idx, 0)}
+                        onContextMenu={(e) => handleCellContextMenu(e, idx, 0)}
+                        className={getCellClassName(idx, 0, `border border-black text-left px-1.5 text-[8.5pt] align-top py-1 break-all whitespace-normal transition-all cursor-text ${region ? "bg-amber-50/10" : ""}`)}
+                      >
+                        <textarea
+                          value={row.desc}
+                          onFocus={() => {
+                            setSelectedRowIndex(idx);
+                            setSelectedCell({ rowIndex: idx, colIndex: 0 });
+                          }}
+                          onChange={(e) => {
+                            handleRowChange(idx, "desc", e.target.value);
+                            e.target.style.height = "auto";
+                            e.target.style.height = `${e.target.scrollHeight}px`;
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" && !e.shiftKey) {
+                              e.preventDefault();
+                              const targetElement = document.querySelector(
+                                `[data-row="${idx + 1}"][data-col="0"]`
+                              ) as HTMLElement | null;
+                              if (targetElement) {
+                                targetElement.focus();
+                              }
+                            } else {
+                              handleKeyDown(e, idx, 0);
+                            }
+                          }}
+                          onPaste={(e) => handlePaste(e, idx, 0)}
+                          data-row={idx}
+                          data-col={0}
+                          rows={1}
+                          style={{ height: "auto", resize: "none" }}
+                          placeholder={region ? "Merged Cell(s) - Excel style" : undefined}
+                          className={`w-full text-left border-none outline-none bg-transparent px-0 text-slate-800 text-[8.5pt] leading-tight block overflow-hidden py-0.5 whitespace-pre-wrap break-all no-print print:hidden ${region ? "font-extrabold text-slate-900 placeholder:text-slate-400 placeholder:italic" : ""}`}
+                        />
+                        <div className="hidden print:block whitespace-pre-wrap break-words text-slate-900 leading-tight py-0.5 text-[8.5pt]">
+                          {row.desc || " "}
+                        </div>
+                      </td>
+                    );
+                  }
+
+                  // --- Qty column ---
+                  if (colIndex === 1) {
+                    return (
+                      <td
+                        key={colIndex}
+                        colSpan={colSpan}
+                        rowSpan={rowSpan}
+                        onMouseDown={(e) => handleCellMouseDown(e, idx, 1)}
+                        onMouseEnter={() => handleCellMouseEnter(idx, 1)}
+                        onMouseUp={(e) => handleCellMouseUp(e, idx, 1)}
+                        onClick={() => handleCellClick(idx, 1)}
+                        onContextMenu={(e) => handleCellContextMenu(e, idx, 1)}
+                        className={getCellClassName(idx, 1, "border border-black text-center font-mono text-[9pt] align-top py-1 transition-all cursor-text")}
+                      >
+                        <textarea
+                          value={row.qty}
+                          onFocus={() => {
+                            setSelectedRowIndex(idx);
+                            setSelectedCell({ rowIndex: idx, colIndex: 1 });
+                          }}
+                          onChange={(e) => {
+                            handleRowChange(idx, "qty", e.target.value);
+                            e.target.style.height = "auto";
+                            e.target.style.height = `${e.target.scrollHeight}px`;
+                          }}
+                          onKeyDown={(e) => handleKeyDown(e, idx, 1)}
+                          onPaste={(e) => handlePaste(e, idx, 1)}
+                          data-row={idx}
+                          data-col={1}
+                          rows={1}
+                          style={{ height: "auto", resize: "none" }}
+                          className={`w-full text-center border-none outline-none bg-transparent px-0 font-mono text-slate-800 align-top overflow-hidden py-0.5 whitespace-pre-wrap break-all no-print print:hidden ${
+                            row.qty.length > 6 ? "text-[7.5pt]" : "text-[9pt]"
+                          }`}
+                        />
+                        <div className="hidden print:block whitespace-pre-wrap break-words text-center font-mono text-slate-900 py-0.5 text-[9pt]">
+                          {row.qty || " "}
+                        </div>
+                      </td>
+                    );
+                  }
+
+                  // --- Unit column ---
+                  if (colIndex === 2) {
+                    return (
+                      <td
+                        key={colIndex}
+                        colSpan={colSpan}
+                        rowSpan={rowSpan}
+                        onMouseDown={(e) => handleCellMouseDown(e, idx, 2)}
+                        onMouseEnter={() => handleCellMouseEnter(idx, 2)}
+                        onMouseUp={(e) => handleCellMouseUp(e, idx, 2)}
+                        onClick={() => handleCellClick(idx, 2)}
+                        onContextMenu={(e) => handleCellContextMenu(e, idx, 2)}
+                        className={getCellClassName(idx, 2, "border border-black text-center text-[9pt] align-top py-1 transition-all cursor-text")}
+                      >
+                        <textarea
+                          value={row.unit}
+                          onFocus={() => {
+                            setSelectedRowIndex(idx);
+                            setSelectedCell({ rowIndex: idx, colIndex: 2 });
+                          }}
+                          onChange={(e) => {
+                            handleRowChange(idx, "unit", e.target.value);
+                            e.target.style.height = "auto";
+                            e.target.style.height = `${e.target.scrollHeight}px`;
+                          }}
+                          onKeyDown={(e) => handleKeyDown(e, idx, 2)}
+                          onPaste={(e) => handlePaste(e, idx, 2)}
+                          data-row={idx}
+                          data-col={2}
+                          rows={1}
+                          style={{ height: "auto", resize: "none" }}
+                          className={`w-full text-center border-none outline-none bg-transparent px-0 text-slate-800 align-top overflow-hidden py-0.5 whitespace-pre-wrap break-all no-print print:hidden ${
+                            row.unit.length > 6 ? "text-[7.5pt]" : "text-[9pt]"
+                          }`}
+                        />
+                        <div className="hidden print:block whitespace-pre-wrap break-words text-center text-slate-900 py-0.5 text-[9pt]">
+                          {row.unit || " "}
+                        </div>
+                      </td>
+                    );
+                  }
+
+                  // --- Price column ---
+                  if (colIndex === 3) {
+                    return (
+                      <td
+                        key={colIndex}
+                        colSpan={colSpan}
+                        rowSpan={rowSpan}
+                        onMouseDown={(e) => handleCellMouseDown(e, idx, 3)}
+                        onMouseEnter={() => handleCellMouseEnter(idx, 3)}
+                        onMouseUp={(e) => handleCellMouseUp(e, idx, 3)}
+                        onClick={() => handleCellClick(idx, 3)}
+                        onContextMenu={(e) => handleCellContextMenu(e, idx, 3)}
+                        className={getCellClassName(idx, 3, "border border-black text-center font-mono text-[9pt] align-top py-1 transition-all cursor-text")}
+                      >
+                        <textarea
+                          value={row.price}
+                          onFocus={() => {
+                            setSelectedRowIndex(idx);
+                            setSelectedCell({ rowIndex: idx, colIndex: 3 });
+                          }}
+                          onChange={(e) => {
+                            handleRowChange(idx, "price", e.target.value);
+                            e.target.style.height = "auto";
+                            e.target.style.height = `${e.target.scrollHeight}px`;
+                          }}
+                          onKeyDown={(e) => handleKeyDown(e, idx, 3)}
+                          onPaste={(e) => handlePaste(e, idx, 3)}
+                          data-row={idx}
+                          data-col={3}
+                          rows={1}
+                          style={{ height: "auto", resize: "none" }}
+                          className={`w-full text-center border-none outline-none bg-transparent px-0 font-mono text-slate-800 align-top overflow-hidden py-0.5 whitespace-pre-wrap break-all no-print print:hidden ${
+                            row.price.length > 8 ? "text-[7.5pt]" : "text-[9pt]"
+                          }`}
+                        />
+                        <div className="hidden print:block whitespace-pre-wrap break-words text-center font-mono text-slate-900 py-0.5 text-[9pt]">
+                          {row.price || " "}
+                        </div>
+                      </td>
+                    );
+                  }
+
+                  // --- Amount column (colIndex === 4) ---
+                  return (
+                    <td
+                      key={colIndex}
+                      colSpan={colSpan}
+                      rowSpan={rowSpan}
+                      onMouseDown={(e) => handleCellMouseDown(e, idx, 4)}
+                      onMouseEnter={() => handleCellMouseEnter(idx, 4)}
+                      onMouseUp={(e) => handleCellMouseUp(e, idx, 4)}
+                      onClick={() => handleCellClick(idx, 4)}
+                      onContextMenu={(e) => handleCellContextMenu(e, idx, 4)}
+                      className={getCellClassName(idx, 4, "border border-black text-right pr-2 font-mono text-[9pt] font-semibold text-slate-800 align-top py-1 transition-all cursor-pointer")}
+                    >
+                      <div className={`whitespace-normal break-all leading-tight ${
+                        row.amount > 0 && row.amount.toLocaleString("en-US", { minimumFractionDigits: 2 }).length > 12
+                          ? "text-[7.5pt]"
+                          : "text-[9pt]"
+                      }`}>
+                        {row.amount > 0 ? row.amount.toLocaleString("en-US", { minimumFractionDigits: 2 }) : "0.00"}
+                      </div>
+                    </td>
+                  );
+                })}
               </tr>
             ))}
           </tbody>
@@ -2380,29 +2559,32 @@ export default function QuotationBuilder() {
             </>
           )}
 
-          {/* Section: Merge/Unmerge — acts on the full drag-selected range if one exists */}
+          {/* Section: Merge/Unmerge — acts on the exact drag-selected cell range (mergedRegions),
+              not the whole row. If only a single cell is selected, right-click there after
+              dragging across multiple cells first to enable a real merge. */}
           <button 
             onClick={() => {
-              toggleMergeSelectedRange();
+              toggleMergeSelectedRangeV2();
               setContextMenu(null);
             }}
-            className="w-full text-left px-3.5 py-1.5 hover:bg-slate-100 flex items-center justify-between font-bold"
+            disabled={!hasRangeSelection() && !getMergeRegionAt(contextMenu.rowIndex, contextMenu.colIndex)}
+            className="w-full text-left px-3.5 py-1.5 hover:bg-slate-100 disabled:opacity-40 disabled:hover:bg-transparent flex items-center justify-between font-bold"
           >
             <div className="flex items-center gap-2.5">
               <Heading className="h-3.5 w-3.5 text-emerald-600" />
               <span>
-                {hasRangeSelection()
-                  ? (rows.slice(
-                      Math.min(selectionStart!.rowIndex, selectionEnd!.rowIndex),
-                      Math.max(selectionStart!.rowIndex, selectionEnd!.rowIndex) + 1
-                    ).some(r => r.isMerged) ? "Unmerge Selected Rows" : "Merge Selected Rows")
-                  : (rows[contextMenu.rowIndex]?.isMerged 
-                      ? "Unmerge / Split Columns" 
-                      : "Merge Columns (Heading Row)")}
+                {getMergeRegionAt(contextMenu.rowIndex, contextMenu.colIndex)
+                  ? "Unmerge Cells"
+                  : "Merge Selected Cells"}
               </span>
             </div>
             <span className="text-[9px] text-slate-400 font-mono">⌘M</span>
           </button>
+          {!hasRangeSelection() && !getMergeRegionAt(contextMenu.rowIndex, contextMenu.colIndex) && (
+            <div className="px-3.5 pb-1.5 -mt-0.5 text-[9.5px] text-slate-400 leading-snug">
+              Drag across multiple cells first, then right-click to merge them.
+            </div>
+          )}
 
           <div className="my-1 border-t border-slate-100"></div>
 
