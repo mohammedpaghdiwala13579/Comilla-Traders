@@ -1298,22 +1298,8 @@ export default function QuotationBuilder() {
     }
   };
 
-  const handleSaveClick = () => {
-    // Generate default filename
-    const identifier = docType === "invoice" ? (invoiceNo || "NEW") : (challanNo || "NEW");
-    const prefix = docType === "invoice" ? "Invoice" : "Quotation";
-    const defaultName = `${prefix}_${identifier.replace(/[\/\\?%*:|"<>\s]/g, "_")}`;
-    setSaveFilename(defaultName);
-    setIsSaveModalOpen(true);
-  };
-
-  const confirmSaveExcel = async () => {
-    let finalName = saveFilename.trim();
-    if (!finalName) finalName = docType === "invoice" ? "Invoice" : "Quotation";
-    if (!finalName.endsWith(".xlsx")) {
-      finalName += ".xlsx";
-    }
-
+  // --- DOWNLOAD EXCEL FUNCTION ---
+  const downloadExcel = (filename: string) => {
     const titleText = docType === "invoice" ? "COMILLA TRADERS - INVOICE" : "COMILLA TRADERS - QUOTATION";
     const data = [
       [titleText],
@@ -1361,8 +1347,74 @@ export default function QuotationBuilder() {
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, docType === "invoice" ? "Invoice" : "Quotation");
 
+    XLSX.writeFile(wb, filename);
+  };
+
+  const handleSaveClick = () => {
+    // Generate default filename
+    const identifier = docType === "invoice" ? (invoiceNo || "NEW") : (challanNo || "NEW");
+    const prefix = docType === "invoice" ? "Invoice" : "Quotation";
+    const defaultName = `${prefix}_${identifier.replace(/[\/\\?%*:|"<>\s]/g, "_")}`;
+    setSaveFilename(defaultName);
+    setIsSaveModalOpen(true);
+  };
+
+  const confirmSaveExcel = async () => {
+    let finalName = saveFilename.trim();
+    if (!finalName) finalName = docType === "invoice" ? "Invoice" : "Quotation";
+    if (!finalName.endsWith(".xlsx")) {
+      finalName += ".xlsx";
+    }
+
     if (saveMethod === "custom" && "showSaveFilePicker" in window) {
       try {
+        const titleText = docType === "invoice" ? "COMILLA TRADERS - INVOICE" : "COMILLA TRADERS - QUOTATION";
+        const data = [
+          [titleText],
+          ["Messers:", messers],
+          ["Address:", address],
+        ];
+
+        if (docType === "invoice") {
+          data.push(["Invoice No.:", invoiceNo]);
+        }
+        data.push(["Challan No.:", challanNo]);
+        data.push(["Date:", dateVal]);
+        data.push(["Requisition No.:", requisitionNo]);
+        if (docType === "invoice") {
+          data.push(["PO Number:", poNumber]);
+        }
+        data.push([]);
+        data.push(["SL", "Description of Marine Items / Spare Parts", "Qty", "Unit", "Price", "Amount"]);
+
+        rows.forEach((row, idx) => {
+          data.push([
+            (idx + 1).toString(),
+            row.desc,
+            row.qty,
+            row.unit,
+            row.price,
+            row.amount > 0 ? row.amount.toLocaleString("en-US", { minimumFractionDigits: 2 }) : "0.00"
+          ]);
+        });
+
+        data.push([]);
+        
+        if (docType === "invoice") {
+          const vatAmount = (grandTotal * vatPercent) / 100;
+          const calculatedGrandTotal = grandTotal + vatAmount + transportation;
+          data.push(["", "", "", "", "Sub Total", grandTotal.toLocaleString("en-US", { minimumFractionDigits: 2 })]);
+          data.push(["", "", "", "", `VAT (${vatPercent}%)`, vatAmount.toLocaleString("en-US", { minimumFractionDigits: 2 })]);
+          data.push(["", "", "", "", "Transportation", transportation.toLocaleString("en-US", { minimumFractionDigits: 2 })]);
+          data.push(["", "", "", "", "GRAND TOTAL", calculatedGrandTotal.toLocaleString("en-US", { minimumFractionDigits: 2 })]);
+        } else {
+          data.push(["", "", "", "", "TOTAL", grandTotal.toLocaleString("en-US", { minimumFractionDigits: 2 })]);
+        }
+
+        const ws = XLSX.utils.aoa_to_sheet(data);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, docType === "invoice" ? "Invoice" : "Quotation");
+
         const wbout = XLSX.write(wb, { bookType: "xlsx", type: "array" });
         const blob = new Blob([wbout], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
         const handle = await (window as any).showSaveFilePicker({
@@ -1384,7 +1436,8 @@ export default function QuotationBuilder() {
         }
       }
     } else {
-      XLSX.writeFile(wb, finalName);
+      // Default download
+      downloadExcel(finalName);
       setIsSaveModalOpen(false);
     }
   };
@@ -1401,37 +1454,37 @@ export default function QuotationBuilder() {
 
   return (
     <div className="quotation-container relative min-h-screen flex flex-col items-center bg-[#f1f5f9] py-5 overflow-x-auto text-[#000] font-sans antialiased">
-      {/* Screen Toolbar */}
-      <div className="top-toolbar no-print print:hidden w-full max-w-[210mm] sm:w-[210mm] mb-4 flex flex-col md:flex-row justify-between items-center gap-3 px-4 sm:px-0 z-10">
-        {/* Left Side: Mode Selector & Auto-Save Control */}
-        <div className="flex flex-wrap items-center gap-3 w-full md:w-auto justify-between md:justify-start">
+      {/* Screen Toolbar - Compact Version */}
+      <div className="top-toolbar no-print print:hidden w-full max-w-[210mm] sm:w-[210mm] mb-3 flex flex-col md:flex-row justify-between items-center gap-2 px-3 sm:px-0 z-10">
+        {/* Left Side: Mode Selector & Auto-Save */}
+        <div className="flex flex-wrap items-center gap-2 w-full md:w-auto justify-between md:justify-start">
           <div className="flex bg-slate-200 p-1 rounded-lg border border-slate-300 shadow-sm shrink-0">
             <button
               type="button"
               onClick={() => setDocType("quotation")}
-              className={`px-3 py-1 rounded-md text-[11px] font-bold transition-all cursor-pointer ${
+              className={`px-2.5 py-0.5 rounded-md text-[10px] font-bold transition-all cursor-pointer ${
                 docType === "quotation"
                   ? "bg-indigo-600 text-white shadow-sm"
                   : "text-slate-700 hover:text-slate-900"
               }`}
             >
-              Quotation Mode
+              Quotation
             </button>
             <button
               type="button"
               onClick={() => setDocType("invoice")}
-              className={`px-3 py-1 rounded-md text-[11px] font-bold transition-all cursor-pointer ${
+              className={`px-2.5 py-0.5 rounded-md text-[10px] font-bold transition-all cursor-pointer ${
                 docType === "invoice"
                   ? "bg-slate-900 text-white shadow-sm"
                   : "text-slate-700 hover:text-slate-900"
               }`}
             >
-              Convert to Invoice
+              Invoice
             </button>
           </div>
 
-          {/* Auto-Save Toggle Switch */}
-          <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-lg border border-slate-200 shadow-xs shrink-0">
+          {/* Auto-Save Toggle - Compact */}
+          <div className="flex items-center gap-1.5 bg-white px-2 py-1 rounded-lg border border-slate-200 shadow-xs shrink-0">
             <label className="relative inline-flex items-center cursor-pointer select-none">
               <input
                 type="checkbox"
@@ -1442,46 +1495,46 @@ export default function QuotationBuilder() {
                 }}
                 className="sr-only peer"
               />
-              <div className="w-8 h-4.5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-3.5 after:w-3.5 after:transition-all peer-checked:bg-emerald-500"></div>
-              <span className="ml-2 text-[10px] font-bold text-slate-600 uppercase tracking-wider">Auto-Save</span>
+              <div className="w-7 h-4 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[1.5px] after:left-[1.5px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-emerald-500"></div>
+              <span className="ml-1.5 text-[9px] font-bold text-slate-600 uppercase tracking-wider">Auto</span>
             </label>
             {lastSavedTime && (
-              <span className="text-[10px] text-emerald-600 font-medium flex items-center gap-1.5 transition-all">
-                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                <span>Saved {lastSavedTime}</span>
+              <span className="text-[8px] text-emerald-600 font-medium flex items-center gap-1">
+                <span className="h-1 w-1 rounded-full bg-emerald-500 animate-pulse"></span>
+                <span className="hidden sm:inline">{lastSavedTime}</span>
               </span>
             )}
           </div>
         </div>
 
-        {/* Right Side: Action Buttons */}
-        <div className="flex flex-wrap items-center gap-2 w-full md:w-auto justify-end">
+        {/* Right Side: Action Buttons - Compact */}
+        <div className="flex flex-wrap items-center gap-1.5 w-full md:w-auto justify-end">
           <button 
             onClick={startNewDoc} 
-            className="bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 font-bold text-[11px] py-1.5 px-3 sm:px-4 rounded-md shadow-sm hover:shadow transition-all cursor-pointer flex items-center gap-1.5"
+            className="bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 font-bold text-[10px] py-1 px-2.5 rounded-md shadow-sm hover:shadow transition-all cursor-pointer flex items-center gap-1"
             title="Start a fresh blank sheet"
           >
-            <FilePlus className="h-3.5 w-3.5" />
-            <span>NEW SHEET</span>
+            <FilePlus className="h-3 w-3" />
+            <span className="hidden sm:inline">NEW</span>
           </button>
           
           {currentDocId && (
             <>
               <button 
                 onClick={duplicateCurrentDoc} 
-                className="bg-white hover:bg-indigo-50 border border-indigo-200 text-indigo-700 font-bold text-[11px] py-1.5 px-3 sm:px-4 rounded-md shadow-sm hover:shadow transition-all cursor-pointer flex items-center gap-1.5"
-                title="Save a duplicated copy of this sheet online under a new name"
+                className="bg-white hover:bg-indigo-50 border border-indigo-200 text-indigo-700 font-bold text-[10px] py-1 px-2.5 rounded-md shadow-sm hover:shadow transition-all cursor-pointer flex items-center gap-1"
+                title="Save a duplicated copy"
               >
-                <Copy className="h-3.5 w-3.5" />
-                <span>DUPLICATE</span>
+                <Copy className="h-3 w-3" />
+                <span className="hidden sm:inline">DUPE</span>
               </button>
               <button 
                 onClick={() => deleteSavedDoc(currentDocId)} 
-                className="bg-white hover:bg-rose-50 border border-rose-200 text-rose-600 hover:text-rose-700 font-bold text-[11px] py-1.5 px-3 sm:px-4 rounded-md shadow-sm hover:shadow transition-all cursor-pointer flex items-center gap-1.5"
-                title="Delete this sheet from the online database"
+                className="bg-white hover:bg-rose-50 border border-rose-200 text-rose-600 hover:text-rose-700 font-bold text-[10px] py-1 px-2.5 rounded-md shadow-sm hover:shadow transition-all cursor-pointer flex items-center gap-1"
+                title="Delete this sheet"
               >
-                <Trash2 className="h-3.5 w-3.5 text-rose-500" />
-                <span>DELETE</span>
+                <Trash2 className="h-3 w-3 text-rose-500" />
+                <span className="hidden sm:inline">DEL</span>
               </button>
             </>
           )}
@@ -1495,140 +1548,142 @@ export default function QuotationBuilder() {
                 : saveStatus === "error" 
                 ? "bg-rose-600 hover:bg-rose-700" 
                 : "bg-indigo-600 hover:bg-indigo-700"
-            } text-white font-bold text-[11px] py-1.5 px-3 sm:px-4 rounded-md shadow-sm hover:shadow transition-all cursor-pointer flex items-center gap-1.5 disabled:opacity-85`}
-            title="Save this sheet directly to the online Cloud database"
+            } text-white font-bold text-[10px] py-1 px-2.5 rounded-md shadow-sm hover:shadow transition-all cursor-pointer flex items-center gap-1 disabled:opacity-85`}
+            title="Save to Cloud Database"
           >
             {saveStatus === "saving" ? (
               <>
-                <RefreshCw className="h-3.5 w-3.5 animate-spin" />
-                <span>SAVING...</span>
+                <RefreshCw className="h-3 w-3 animate-spin" />
+                <span className="hidden sm:inline">SAVING</span>
               </>
             ) : saveStatus === "saved" ? (
               <>
-                <Check className="h-3.5 w-3.5" />
-                <span>SAVED ONLINE!</span>
+                <Check className="h-3 w-3" />
+                <span className="hidden sm:inline">SAVED</span>
               </>
             ) : saveStatus === "error" ? (
               <>
-                <Trash2 className="h-3.5 w-3.5" />
-                <span>SAVE FAILED</span>
+                <Trash2 className="h-3 w-3" />
+                <span className="hidden sm:inline">FAILED</span>
               </>
             ) : (
               <>
-                <Save className="h-3.5 w-3.5" />
-                <span>SAVE ONLINE</span>
+                <Save className="h-3 w-3" />
+                <span className="hidden sm:inline">SAVE</span>
               </>
             )}
           </button>
+          
           <button 
             onClick={handleSaveClick} 
-            className="bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-[11px] py-1.5 px-3 sm:px-4 rounded-md shadow-sm hover:shadow transition-all cursor-pointer flex items-center gap-1.5"
+            className="bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-[10px] py-1 px-2.5 rounded-md shadow-sm hover:shadow transition-all cursor-pointer flex items-center gap-1"
           >
-            <Download className="h-3.5 w-3.5" />
-            <span>SAVE EXCEL</span>
+            <Download className="h-3 w-3" />
+            <span className="hidden sm:inline">EXCEL</span>
           </button>
+          
           <button 
             onClick={handlePrint} 
-            className="bg-rose-600 hover:bg-rose-700 text-white font-bold text-[11px] py-1.5 px-3 sm:px-4 rounded-md shadow-sm hover:shadow transition-all cursor-pointer flex items-center gap-1.5"
+            className="bg-rose-600 hover:bg-rose-700 text-white font-bold text-[10px] py-1 px-2.5 rounded-md shadow-sm hover:shadow transition-all cursor-pointer flex items-center gap-1"
           >
-            <Printer className="h-3.5 w-3.5" />
-            <span>PRINT / PDF</span>
+            <Printer className="h-3 w-3" />
+            <span className="hidden sm:inline">PRINT</span>
           </button>
         </div>
       </div>
 
       {/* Editing State Banner */}
       {currentDocId && (
-        <div className="no-print print:hidden w-full max-w-[210mm] sm:w-[210mm] mb-3 px-4 sm:px-0 z-10 animate-in fade-in slide-in-from-top-2 duration-250">
-          <div className="bg-indigo-50 border border-indigo-100 rounded-lg p-3 sm:p-4 flex items-center justify-between text-xs text-indigo-950 shadow-sm">
-            <div className="flex items-center gap-2.5 min-w-0">
-              <span className="bg-indigo-600 text-white font-black text-[9px] px-2 py-0.5 rounded-sm uppercase tracking-wider shrink-0 shadow-xs">
-                EDITING MODE
+        <div className="no-print print:hidden w-full max-w-[210mm] sm:w-[210mm] mb-2 px-3 sm:px-0 z-10 animate-in fade-in slide-in-from-top-2 duration-250">
+          <div className="bg-indigo-50 border border-indigo-100 rounded-lg p-2 flex items-center justify-between text-xs text-indigo-950 shadow-sm">
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="bg-indigo-600 text-white font-black text-[8px] px-1.5 py-0.5 rounded-sm uppercase tracking-wider shrink-0 shadow-xs">
+                Editing
               </span>
-              <span className="font-bold text-slate-800 truncate" title={savedDocs.find(d => d.id === currentDocId)?.name || "Active Sheet"}>
+              <span className="font-bold text-slate-800 truncate text-[11px]" title={savedDocs.find(d => d.id === currentDocId)?.name || "Active Sheet"}>
                 {savedDocs.find(d => d.id === currentDocId)?.name || "Active Sheet"}
               </span>
             </div>
             <button
               type="button"
               onClick={resetSheetFields}
-              className="text-[11px] font-bold text-indigo-600 hover:text-indigo-800 hover:bg-indigo-100/50 px-2.5 py-1.5 rounded transition-all cursor-pointer uppercase tracking-wider shrink-0"
+              className="text-[10px] font-bold text-indigo-600 hover:text-indigo-800 hover:bg-indigo-100/50 px-2 py-1 rounded transition-all cursor-pointer uppercase tracking-wider shrink-0"
             >
-              Start New / Close
+              Close
             </button>
           </div>
         </div>
       )}
 
-      {/* Excel / Google Sheets Style Full App Layout Toolbar */}
-      <div className="excel-editor-container no-print print:hidden w-full max-w-[210mm] sm:w-[210mm] bg-[#f8f9fa] border border-slate-300 rounded-lg shadow-md mb-4 overflow-hidden text-slate-800 z-10">
+      {/* Excel / Google Sheets Style Full App Layout Toolbar - Compact */}
+      <div className="excel-editor-container no-print print:hidden w-full max-w-[210mm] sm:w-[210mm] bg-[#f8f9fa] border border-slate-300 rounded-lg shadow-md mb-3 overflow-hidden text-slate-800 z-10">
         {/* Menu Bar: File */}
-        <div className="flex flex-wrap items-center gap-1 bg-[#f8f9fa] border-b border-slate-200 px-3 py-1 text-xs select-none">
-          <div className="font-semibold text-[13px] text-emerald-700 mr-4 font-mono flex items-center gap-1">
-            <span className="bg-emerald-700 text-white font-black text-[10px] px-1.5 py-0.5 rounded-xs leading-none shadow-xs">田</span>
-            <span className="font-extrabold tracking-tight font-sans">ComillaSheets</span>
+        <div className="flex flex-wrap items-center gap-1 bg-[#f8f9fa] border-b border-slate-200 px-2 py-1 text-xs select-none">
+          <div className="font-semibold text-[11px] text-emerald-700 mr-2 font-mono flex items-center gap-1">
+            <span className="bg-emerald-700 text-white font-black text-[8px] px-1 py-0.5 rounded-xs leading-none shadow-xs">田</span>
+            <span className="font-extrabold tracking-tight font-sans text-[10px]">ComillaSheets</span>
           </div>
           
           {/* File Dropdown */}
           <div className="relative group">
-            <button className="px-2 py-1 hover:bg-slate-200 rounded-md cursor-pointer transition-all font-semibold text-slate-700 text-[11px]">File</button>
-            <div className="hidden group-hover:block absolute left-0 top-full bg-white border border-slate-200 shadow-xl rounded-md py-1 w-52 z-50 animate-in fade-in slide-in-from-top-1 duration-100">
-              <button onClick={startNewDoc} className="w-full text-left px-3 py-1.5 hover:bg-slate-100 flex items-center gap-2 text-[11px] text-slate-700 font-bold">
-                <FilePlus className="h-3.5 w-3.5 text-slate-400" /> New Sheet
+            <button className="px-1.5 py-0.5 hover:bg-slate-200 rounded-md cursor-pointer transition-all font-semibold text-slate-700 text-[10px]">File</button>
+            <div className="hidden group-hover:block absolute left-0 top-full bg-white border border-slate-200 shadow-xl rounded-md py-1 w-48 z-50 animate-in fade-in slide-in-from-top-1 duration-100">
+              <button onClick={startNewDoc} className="w-full text-left px-3 py-1 hover:bg-slate-100 flex items-center gap-2 text-[10px] text-slate-700 font-bold">
+                <FilePlus className="h-3 w-3 text-slate-400" /> New Sheet
               </button>
-              <button onClick={saveCurrentDocToApp} className="w-full text-left px-3 py-1.5 hover:bg-slate-100 flex items-center gap-2 text-[11px] text-slate-700 font-bold">
-                <Save className="h-3.5 w-3.5 text-slate-400" /> Save to Cloud Database
+              <button onClick={saveCurrentDocToApp} className="w-full text-left px-3 py-1 hover:bg-slate-100 flex items-center gap-2 text-[10px] text-slate-700 font-bold">
+                <Save className="h-3 w-3 text-slate-400" /> Save to Cloud
               </button>
-              <button onClick={handleSaveClick} className="w-full text-left px-3 py-1.5 hover:bg-slate-100 flex items-center gap-2 text-[11px] text-slate-700 font-bold">
-                <Download className="h-3.5 w-3.5 text-slate-400" /> Download Excel (.xlsx)
+              <button onClick={handleSaveClick} className="w-full text-left px-3 py-1 hover:bg-slate-100 flex items-center gap-2 text-[10px] text-slate-700 font-bold">
+                <Download className="h-3 w-3 text-slate-400" /> Download Excel
               </button>
-              <button onClick={handlePrint} className="w-full text-left px-3 py-1.5 hover:bg-slate-100 flex items-center gap-2 text-[11px] text-slate-700 font-bold border-t border-slate-100">
-                <Printer className="h-3.5 w-3.5 text-slate-400" /> Print / Save as PDF
+              <button onClick={handlePrint} className="w-full text-left px-3 py-1 hover:bg-slate-100 flex items-center gap-2 text-[10px] text-slate-700 font-bold border-t border-slate-100">
+                <Printer className="h-3 w-3 text-slate-400" /> Print / PDF
               </button>
             </div>
           </div>
 
-          {/* Merge/Unmerge action for the current cell-range selection (uses mergedRegions, not whole-row merge) */}
+          {/* Merge/Unmerge action */}
           <button
             type="button"
             onClick={toggleMergeSelectedRangeV2}
-            title="Merge or unmerge the currently selected cell(s). Drag across cells first to select a range."
-            className="ml-2 px-2 py-1 hover:bg-emerald-100 rounded-md cursor-pointer transition-all font-bold text-emerald-700 text-[11px] flex items-center gap-1.5 border border-emerald-200 bg-emerald-50"
+            title="Merge or unmerge the selected cells"
+            className="ml-1 px-1.5 py-0.5 hover:bg-emerald-100 rounded-md cursor-pointer transition-all font-bold text-emerald-700 text-[10px] flex items-center gap-1 border border-emerald-200 bg-emerald-50"
           >
-            <Heading className="h-3.5 w-3.5" />
-            <span>
+            <Heading className="h-3 w-3" />
+            <span className="hidden sm:inline">
               {(() => {
-                if (!selectionStart) return "Merge Cells";
+                if (!selectionStart) return "Merge";
                 const existing = getMergeRegionAt(selectionStart.rowIndex, selectionStart.colIndex);
-                return existing ? "Unmerge Cells" : "Merge Cells";
+                return existing ? "Unmerge" : "Merge";
               })()}
             </span>
           </button>
 
-          {/* Right-aligned Compact Quick-access Buttons */}
-          <div className="ml-auto flex items-center gap-1.5 pr-1">
+          {/* Right-aligned Quick-access Buttons */}
+          <div className="ml-auto flex items-center gap-1">
             <button 
               onClick={saveCurrentDocToApp}
               title="Save to Cloud Database"
-              className="px-2 py-0.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 hover:text-emerald-800 rounded-md transition-all cursor-pointer flex items-center gap-1 font-bold text-[9px] shadow-3xs"
+              className="px-1.5 py-0.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 hover:text-emerald-800 rounded-md transition-all cursor-pointer flex items-center gap-0.5 font-bold text-[8px] shadow-3xs"
             >
-              <Save className="h-3 w-3" />
+              <Save className="h-2.5 w-2.5" />
               <span className="hidden sm:inline">SAVE</span>
             </button>
             <button 
               onClick={handleSaveClick}
               title="Download Excel (.xlsx)"
-              className="px-2 py-0.5 bg-blue-50 hover:bg-blue-100 text-blue-700 hover:text-blue-800 rounded-md transition-all cursor-pointer flex items-center gap-1 font-bold text-[9px] shadow-3xs"
+              className="px-1.5 py-0.5 bg-blue-50 hover:bg-blue-100 text-blue-700 hover:text-blue-800 rounded-md transition-all cursor-pointer flex items-center gap-0.5 font-bold text-[8px] shadow-3xs"
             >
-              <Download className="h-3 w-3" />
+              <Download className="h-2.5 w-2.5" />
               <span className="hidden sm:inline">EXCEL</span>
             </button>
             <button 
               onClick={handlePrint}
               title="Print or Save as PDF"
-              className="px-2 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-700 hover:text-slate-800 rounded-md transition-all cursor-pointer flex items-center gap-1 font-bold text-[9px] shadow-3xs"
+              className="px-1.5 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-700 hover:text-slate-800 rounded-md transition-all cursor-pointer flex items-center gap-0.5 font-bold text-[8px] shadow-3xs"
             >
-              <Printer className="h-3 w-3" />
+              <Printer className="h-2.5 w-2.5" />
               <span className="hidden sm:inline">PRINT</span>
             </button>
           </div>
