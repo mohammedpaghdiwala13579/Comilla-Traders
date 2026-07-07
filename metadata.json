@@ -1,6 +1,6 @@
 {
   "name": "Comilla Traders Operations Portal",
-  "description": "A unified logistics and official quotation manager with inventory control, analytics, and PDF/Excel generation.",
+  "description": "A unified logistics and inventory control portal with real-time syncing, crew issuance tracking, and operations analytics.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

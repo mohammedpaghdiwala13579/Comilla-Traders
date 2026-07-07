@@ -23,13 +23,11 @@ import {
   Settings,
   Bed,
   ShieldAlert,
-  FolderSync,
-  FileText
+  FolderSync
 } from "lucide-react";
 import CrewTerminal from "./components/CrewTerminal";
 import HostTerminal from "./components/HostTerminal";
 import StatisticsCenter from "./components/StatisticsCenter";
-import QuotationBuilder from "./components/QuotationBuilder";
 import LoginScreen from "./components/LoginScreen";
 import { InventoryItem, StatsData } from "./types";
 import { classifyItem, cleanDescription, StoreType, STORES, setDynamicStores } from "./utils/storeClassifier";
@@ -299,11 +297,11 @@ const getPreSeededStats = (inv: InventoryItem[]): StatsData => {
 };
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<"crew" | "host" | "statistics" | "quotation">((() => {
+  const [activeTab, setActiveTab] = useState<"crew" | "host" | "statistics">((() => {
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
       const tab = params.get("tab");
-      if (tab === "host" || tab === "statistics" || tab === "crew" || tab === "quotation") {
+      if (tab === "host" || tab === "statistics" || tab === "crew") {
         return tab as any;
       }
     }
@@ -947,24 +945,7 @@ export default function App() {
             )}
           </button>
 
-          {/* New Quotation Tool Sidebar Menu Option */}
-          <button
-            type="button"
-            onClick={() => setActiveTab("quotation")}
-            className={`w-full flex items-center justify-between py-3 px-4 rounded-xl text-xs font-bold tracking-wide transition-all group ${
-              activeTab === "quotation"
-                ? "bg-slate-900 text-white shadow-md border border-slate-800"
-                : "text-slate-400 hover:text-white hover:bg-slate-900/50"
-            }`}
-          >
-            <div className="flex items-center gap-3">
-              <FileText className={`h-4.5 w-4.5 transition-colors ${activeTab === "quotation" ? "text-indigo-400" : "text-slate-500 group-hover:text-slate-300"}`} />
-              <span>Quotation Deck</span>
-            </div>
-            <span className="bg-indigo-950 text-[10px] text-indigo-300 px-2 py-0.5 rounded-full border border-indigo-900 font-bold">
-              New
-            </span>
-          </button>
+
 
           {/* Active Inventory Selection */}
           <div className="pt-4 mt-4 border-t border-slate-900 space-y-1">
@@ -1174,8 +1155,7 @@ export default function App() {
           {[
             { id: "crew", label: "Crew Deck", icon: Users },
             { id: "host", label: "Host Deck", icon: Lock },
-            { id: "statistics", label: "Statistics", icon: BarChart3 },
-            { id: "quotation", label: "Quotation", icon: FileText }
+            { id: "statistics", label: "Statistics", icon: BarChart3 }
           ].map((t) => {
             const Icon = t.icon;
             const isSelected = activeTab === t.id;
@@ -1253,20 +1233,6 @@ export default function App() {
                     <span className="text-[9px] text-slate-500 bg-slate-950 px-2 py-0.5 rounded border border-slate-900">
                       {criticalItemsCount} Alerts
                     </span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setActiveTab("quotation");
-                      setIsSidebarOpenMobile(false);
-                    }}
-                    className={`w-full flex items-center justify-between p-3.5 rounded-xl text-xs font-bold ${
-                      activeTab === "quotation" ? "bg-slate-900 text-indigo-400" : "text-slate-300"
-                    }`}
-                  >
-                    <span className="flex items-center gap-3"><FileText className="h-4.5 w-4.5" /> Quotation Deck</span>
-                    <span className="text-[10px] text-slate-500">New Tool</span>
                   </button>
                 </div>
               </div>
@@ -1388,7 +1354,6 @@ export default function App() {
               {activeTab === "crew" && "Crew Deck (Issuance Panel)"}
               {activeTab === "host" && "Host Deck (Inventory & Restock)"}
               {activeTab === "statistics" && "Command Analytics Center"}
-              {activeTab === "quotation" && "Official Quotation Builder"}
             </span>
           </div>
 
@@ -1434,44 +1399,42 @@ export default function App() {
           ) : (
             <div className="space-y-6">
               {/* Active Register Information Banner */}
-              {activeTab !== "quotation" && (
-                <div className={`p-4 rounded-2xl border ${
-                  activeStore === "all"
-                    ? "bg-slate-50 border-slate-200 text-slate-700"
-                    : (STORES.find(s => s.id === activeStore)?.bg || "bg-indigo-50") + " " + (STORES.find(s => s.id === activeStore)?.border || "border-indigo-200/80")
-                } no-print flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 transition-all duration-300`}>
-                  <div className="flex items-center gap-3">
-                    <div className="p-3 bg-white rounded-xl shadow-xs border border-slate-100 flex-shrink-0">
-                      {activeStore === "all" ? (
-                        <FolderSync className="h-5 w-5 text-indigo-600" />
-                      ) : (
-                        React.createElement(
-                          getStoreIconComponent(activeStore),
-                          { className: "h-5 w-5 " + (STORES.find(s => s.id === activeStore)?.text || "text-indigo-700") }
-                        )
-                      )}
-                    </div>
-                    <div>
-                      <h3 className="font-bold text-slate-800 text-sm flex items-center gap-2">
-                        {activeStore === "all" ? "Comprehensive Unified Register" : `${STORES.find(s => s.id === activeStore)?.label} active`}
-                        {activeStore !== "all" && <span className="text-[10px] bg-white font-bold text-slate-500 border border-slate-200 px-1.5 py-0.5 rounded-md uppercase tracking-wider">Filtered</span>}
-                      </h3>
-                      <p className="text-xs text-slate-500 mt-0.5 max-w-2xl">
-                        {activeStore === "all"
-                          ? "Currently managing all four maritime logistical stores in a unified display. Operations apply globally."
-                          : STORES.find(s => s.id === activeStore)?.description}
-                      </p>
-                    </div>
+              <div className={`p-4 rounded-2xl border ${
+                activeStore === "all"
+                  ? "bg-slate-50 border-slate-200 text-slate-700"
+                  : (STORES.find(s => s.id === activeStore)?.bg || "bg-indigo-50") + " " + (STORES.find(s => s.id === activeStore)?.border || "border-indigo-200/80")
+              } no-print flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 transition-all duration-300`}>
+                <div className="flex items-center gap-3">
+                  <div className="p-3 bg-white rounded-xl shadow-xs border border-slate-100 flex-shrink-0">
+                    {activeStore === "all" ? (
+                      <FolderSync className="h-5 w-5 text-indigo-600" />
+                    ) : (
+                      React.createElement(
+                        getStoreIconComponent(activeStore),
+                        { className: "h-5 w-5 " + (STORES.find(s => s.id === activeStore)?.text || "text-indigo-700") }
+                      )
+                    )}
                   </div>
-
-                  <div className="flex items-center gap-2 flex-shrink-0 text-xs font-bold text-slate-600 bg-white/60 backdrop-blur-md border border-white/80 py-1.5 px-3 rounded-xl font-mono">
-                    <span>ACTIVE INVENTORY:</span>
-                    <span className="text-indigo-600 uppercase">{activeStore === "all" ? "All" : activeStore}</span>
+                  <div>
+                    <h3 className="font-bold text-slate-800 text-sm flex items-center gap-2">
+                      {activeStore === "all" ? "Comprehensive Unified Register" : `${STORES.find(s => s.id === activeStore)?.label} active`}
+                      {activeStore !== "all" && <span className="text-[10px] bg-white font-bold text-slate-500 border border-slate-200 px-1.5 py-0.5 rounded-md uppercase tracking-wider">Filtered</span>}
+                    </h3>
+                    <p className="text-xs text-slate-500 mt-0.5 max-w-2xl">
+                      {activeStore === "all"
+                        ? "Currently managing all four maritime logistical stores in a unified display. Operations apply globally."
+                        : STORES.find(s => s.id === activeStore)?.description}
+                    </p>
                   </div>
                 </div>
-              )}
 
-              {connectionError && activeTab !== "quotation" && (
+                <div className="flex items-center gap-2 flex-shrink-0 text-xs font-bold text-slate-600 bg-white/60 backdrop-blur-md border border-white/80 py-1.5 px-3 rounded-xl font-mono">
+                  <span>ACTIVE INVENTORY:</span>
+                  <span className="text-indigo-600 uppercase">{activeStore === "all" ? "All" : activeStore}</span>
+                </div>
+              </div>
+
+              {connectionError && (
                 <div className="bg-amber-50 border-l-4 border-amber-500 p-4 rounded-xl shadow-xs no-print">
                   <div className="flex gap-3">
                     <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
@@ -1499,7 +1462,7 @@ export default function App() {
                 </div>
               )}
 
-              <div className={`${activeTab === "quotation" ? "" : "bg-white border border-slate-200 p-3 sm:p-6 rounded-2xl sm:rounded-3xl shadow-sm"} transition-all duration-300`}>
+              <div className="bg-white border border-slate-200 p-3 sm:p-6 rounded-2xl sm:rounded-3xl shadow-sm transition-all duration-300">
                 {activeTab === "crew" && (
                   <CrewTerminal
                     inventory={activeStore === "all" ? inventory : inventory.filter(i => i.store === activeStore)}
@@ -1555,10 +1518,6 @@ export default function App() {
                       onLoginSuccess={() => setIsAuthenticated(true)}
                     />
                   )
-                )}
-
-                {activeTab === "quotation" && (
-                  <QuotationBuilder />
                 )}
               </div>
             </div>
