@@ -16,9 +16,8 @@ export interface PWAInstallState {
   isAndroid: boolean;
   isWindows: boolean;
   isIframe: boolean;
-  isSafari: boolean;
   installStatus: string | null;
-  triggerInstall: () => Promise<'accepted' | 'dismissed' | 'ios' | 'unsupported' | 'already-installed'>;
+  triggerInstall: () => Promise<'accepted' | 'dismissed' | 'ios' | 'fallback' | 'already-installed'>;
   clearStatus: () => void;
 }
 
@@ -33,10 +32,9 @@ export function usePWAInstall(): PWAInstallState {
   const isIOS = /iphone|ipad|ipod/.test(userAgent) || (typeof navigator !== 'undefined' && navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
   const isAndroid = /android/.test(userAgent);
   const isWindows = /windows/.test(userAgent);
-  const isSafari = /safari/.test(userAgent) && !/chrome|crios|crmo|firefox|fxios/.test(userAgent);
 
   useEffect(() => {
-    // Check if running in standalone mode (already installed app)
+    // Check if app is already running in standalone mode
     const checkStandalone = () => {
       const isStandalone =
         window.matchMedia('(display-mode: standalone)').matches ||
@@ -49,7 +47,6 @@ export function usePWAInstall(): PWAInstallState {
 
     checkStandalone();
 
-    // Listen for display-mode changes
     const mediaQuery = window.matchMedia('(display-mode: standalone)');
     const handleMediaChange = (e: MediaQueryListEvent) => {
       if (e.matches) {
@@ -58,18 +55,17 @@ export function usePWAInstall(): PWAInstallState {
     };
     mediaQuery.addEventListener('change', handleMediaChange);
 
-    // Capture beforeinstallprompt
+    // Capture standard PWA install prompt
     const handleBeforeInstallPrompt = (e: Event) => {
       e.preventDefault();
       setDeferredPrompt(e as BeforeInstallPromptEvent);
     };
 
-    // Capture appinstalled event
     const handleAppInstalled = () => {
       setIsInstalled(true);
       setDeferredPrompt(null);
-      setInstallStatus('App Installed Successfully ✓');
-      setTimeout(() => setInstallStatus(null), 4000);
+      setInstallStatus('Installed ✓');
+      setTimeout(() => setInstallStatus(null), 3000);
     };
 
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
@@ -82,14 +78,14 @@ export function usePWAInstall(): PWAInstallState {
     };
   }, []);
 
-  const triggerInstall = useCallback(async (): Promise<'accepted' | 'dismissed' | 'ios' | 'unsupported' | 'already-installed'> => {
+  const triggerInstall = useCallback(async (): Promise<'accepted' | 'dismissed' | 'ios' | 'fallback' | 'already-installed'> => {
     if (isInstalled) {
-      setInstallStatus('Already installed on your device');
-      setTimeout(() => setInstallStatus(null), 3000);
+      setInstallStatus('Already installed ✓');
+      setTimeout(() => setInstallStatus(null), 2500);
       return 'already-installed';
     }
 
-    // 1. One-click install if native prompt is available (Android, Windows, Edge, Chrome)
+    // Direct 1-click install for Android, Windows, Chrome, Edge
     if (deferredPrompt) {
       try {
         await deferredPrompt.prompt();
@@ -97,26 +93,43 @@ export function usePWAInstall(): PWAInstallState {
         if (choice.outcome === 'accepted') {
           setIsInstalled(true);
           setDeferredPrompt(null);
-          setInstallStatus('Installing Comilla Traders App...');
-          setTimeout(() => setInstallStatus(null), 3500);
+          setInstallStatus('Installed ✓');
+          setTimeout(() => setInstallStatus(null), 3000);
           return 'accepted';
         } else {
-          setInstallStatus('Installation cancelled');
-          setTimeout(() => setInstallStatus(null), 2500);
+          setInstallStatus('Cancelled');
+          setTimeout(() => setInstallStatus(null), 2000);
           return 'dismissed';
         }
       } catch (err) {
-        console.error('PWA install error:', err);
+        console.error('Install prompt error:', err);
       }
     }
 
-    // 2. iOS Safari (WebKit does not support programmatic beforeinstallprompt)
+    // iOS Safari
     if (isIOS) {
+      setInstallStatus("Tap Safari Share ➔ Add to Home Screen");
+      setTimeout(() => setInstallStatus(null), 3500);
       return 'ios';
     }
 
-    return 'unsupported';
-  }, [deferredPrompt, isInstalled, isIOS]);
+    // If embedded or prompt not yet fired
+    if (isIframe) {
+      setInstallStatus("Open in browser to install directly");
+      setTimeout(() => setInstallStatus(null), 3500);
+      return 'fallback';
+    }
+
+    if (isWindows) {
+      setInstallStatus("Click (⊕) in browser address bar to install");
+    } else if (isAndroid) {
+      setInstallStatus("Tap Menu (⋮) ➔ Install app");
+    } else {
+      setInstallStatus("Tap Menu (⋮) ➔ Install app");
+    }
+    setTimeout(() => setInstallStatus(null), 3500);
+    return 'fallback';
+  }, [deferredPrompt, isInstalled, isIOS, isIframe, isWindows, isAndroid]);
 
   const clearStatus = useCallback(() => {
     setInstallStatus(null);
@@ -129,7 +142,6 @@ export function usePWAInstall(): PWAInstallState {
     isAndroid,
     isWindows,
     isIframe,
-    isSafari,
     installStatus,
     triggerInstall,
     clearStatus,
