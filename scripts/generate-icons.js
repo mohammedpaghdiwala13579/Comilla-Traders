@@ -1,60 +1,68 @@
 import sharp from 'sharp';
-import fs from 'fs';
 import path from 'path';
 
-async function generateIcons() {
+async function generateIconsFromMainLogo() {
   const publicDir = path.resolve(process.cwd(), 'public');
-  if (!fs.existsSync(publicDir)) {
-    fs.mkdirSync(publicDir, { recursive: true });
-  }
+  const logoPath = path.join(publicDir, 'comilla-logo.png');
 
-  const iconSvgPath = path.join(publicDir, 'icon.svg');
-  const maskableSvgPath = path.join(publicDir, 'icon-maskable.svg');
+  console.log('Generating PWA icons from main web page logo:', logoPath);
 
-  const svgBuffer = fs.readFileSync(iconSvgPath);
-  const maskableSvgBuffer = fs.readFileSync(maskableSvgPath);
-
-  console.log('Generating PWA PNG icons from SVGs...');
-
-  // 192x192 standard icon
-  await sharp(svgBuffer)
-    .resize(192, 192)
+  // 192x192 icon
+  await sharp(logoPath)
+    .resize(192, 192, { fit: 'cover' })
     .png()
     .toFile(path.join(publicDir, 'pwa-192x192.png'));
   console.log('✓ Created pwa-192x192.png');
 
-  // 512x512 standard icon
-  await sharp(svgBuffer)
-    .resize(512, 512)
+  // 512x512 icon
+  await sharp(logoPath)
+    .resize(512, 512, { fit: 'cover' })
     .png()
     .toFile(path.join(publicDir, 'pwa-512x512.png'));
   console.log('✓ Created pwa-512x512.png');
 
-  // 512x512 maskable icon
-  await sharp(maskableSvgBuffer)
-    .resize(512, 512)
+  // 512x512 maskable icon with 15% safe-zone margin on white background
+  const innerLogoSize = Math.round(512 * 0.82); // ~420px
+  const resizedInner = await sharp(logoPath)
+    .resize(innerLogoSize, innerLogoSize, { fit: 'contain' })
+    .toBuffer();
+
+  await sharp({
+    create: {
+      width: 512,
+      height: 512,
+      channels: 4,
+      background: { r: 254, g: 254, b: 254, alpha: 1 },
+    },
+  })
+    .composite([
+      {
+        input: resizedInner,
+        gravity: 'center',
+      },
+    ])
     .png()
     .toFile(path.join(publicDir, 'pwa-maskable-512x512.png'));
-  console.log('✓ Created pwa-maskable-512x512.png');
+  console.log('✓ Created pwa-maskable-512x512.png (maskable safe zone)');
 
-  // 180x180 apple touch icon
-  await sharp(svgBuffer)
-    .resize(180, 180)
+  // 180x180 Apple touch icon
+  await sharp(logoPath)
+    .resize(180, 180, { fit: 'cover' })
     .png()
     .toFile(path.join(publicDir, 'apple-touch-icon.png'));
   console.log('✓ Created apple-touch-icon.png');
 
-  // 32x32 favicon png
-  await sharp(svgBuffer)
-    .resize(32, 32)
+  // 32x32 favicon
+  await sharp(logoPath)
+    .resize(32, 32, { fit: 'cover' })
     .png()
     .toFile(path.join(publicDir, 'favicon-32x32.png'));
   console.log('✓ Created favicon-32x32.png');
 
-  console.log('All PWA icons generated successfully!');
+  console.log('All PWA icons synchronized with main web page logo successfully!');
 }
 
-generateIcons().catch((err) => {
-  console.error('Error generating icons:', err);
+generateIconsFromMainLogo().catch((err) => {
+  console.error('Error:', err);
   process.exit(1);
 });

@@ -11,11 +11,11 @@ export default defineConfig(() => {
       tailwindcss(),
       VitePWA({
         registerType: 'autoUpdate',
-        includeAssets: ['favicon-32x32.png', 'apple-touch-icon.png', 'icon.svg'],
+        includeAssets: ['favicon-32x32.png', 'apple-touch-icon.png', 'comilla-logo.png'],
         manifest: {
           id: '/',
-          name: 'Comilla Traders Operations Portal',
-          short_name: 'ComillaOps',
+          name: 'COMILLA TRADERS OPERATIONS PORTAL',
+          short_name: 'COMILLA TRADERS',
           description: 'A unified logistics and inventory control portal with real-time syncing, crew issuance tracking, and operations analytics.',
           theme_color: '#0f172a',
           background_color: '#0f172a',

@@ -801,11 +801,14 @@ export default function App() {
       <aside className="hidden lg:flex w-80 bg-slate-950 text-slate-200 flex-col border-r border-slate-900 shrink-0 relative no-print z-20">
         <div className="p-6 border-b border-slate-900 bg-slate-950/80 backdrop-blur-md">
           <div className="flex items-center gap-3">
-            <div className="h-14 w-14 rounded-full border border-indigo-500/40 shadow-inner overflow-hidden bg-black flex-shrink-0 flex items-center justify-center transition-all duration-300 hover:scale-105 hover:border-indigo-400">
+            <div className="h-14 w-14 rounded-full border border-indigo-500/40 shadow-inner overflow-hidden bg-white flex-shrink-0 flex items-center justify-center transition-all duration-300 hover:scale-105 hover:border-indigo-400">
               <img
-                src="https://i.ibb.co.com/gFBkpt8B/Chat-GPT-Image-Apr-23-2026-01-10-13-PM.png"
+                src="/comilla-logo.png"
                 alt="Comilla Traders Logo"
                 className="w-full h-full object-cover"
+                onError={(e) => {
+                  (e.currentTarget as HTMLImageElement).src = "https://i.ibb.co.com/gFBkpt8B/Chat-GPT-Image-Apr-23-2026-01-10-13-PM.png";
+                }}
               />
             </div>
             <div>
@@ -1050,11 +1053,14 @@ export default function App() {
       <header className="lg:hidden w-full bg-slate-950 text-white border-b border-slate-900 no-print sticky top-0 z-30">
         <div className="p-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="h-10 w-10 rounded-full border border-indigo-500/30 overflow-hidden bg-black flex items-center justify-center">
+            <div className="h-10 w-10 rounded-full border border-indigo-500/30 overflow-hidden bg-white flex items-center justify-center">
               <img
-                src="https://i.ibb.co.com/gFBkpt8B/Chat-GPT-Image-Apr-23-2026-01-10-13-PM.png"
+                src="/comilla-logo.png"
                 alt="Comilla Traders Logo"
                 className="w-full h-full object-cover"
+                onError={(e) => {
+                  (e.currentTarget as HTMLImageElement).src = "https://i.ibb.co.com/gFBkpt8B/Chat-GPT-Image-Apr-23-2026-01-10-13-PM.png";
+                }}
               />
             </div>
             <div>
