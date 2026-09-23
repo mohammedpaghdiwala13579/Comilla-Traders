@@ -29,6 +29,8 @@ import CrewTerminal from "./components/CrewTerminal";
 import HostTerminal from "./components/HostTerminal";
 import StatisticsCenter from "./components/StatisticsCenter";
 import LoginScreen from "./components/LoginScreen";
+import { PWAInstallButton } from "./components/PWAInstallButton";
+import { OfflineIndicator } from "./components/OfflineIndicator";
 import { InventoryItem, StatsData } from "./types";
 import { classifyItem, cleanDescription, StoreType, STORES, setDynamicStores } from "./utils/storeClassifier";
 
@@ -357,11 +359,6 @@ export default function App() {
   const [isSidebarOpenMobile, setIsSidebarOpenMobile] = useState(false);
   const [isDirectoryExpanded, setIsDirectoryExpanded] = useState(false);
   const [lowStockThreshold, setLowStockThreshold] = useState<number>(5);
-
-  // PWA Install states
-  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
-  const [isAlreadyInstalled, setIsAlreadyInstalled] = useState(false);
-  const [installStatus, setInstallStatus] = useState<string | null>(null);
 
   const processActionLocally = (action: string, payload: any[]) => {
     // Read current inventory and stats from active memory
@@ -758,14 +755,6 @@ export default function App() {
       syncData(false);
     }, 10000);
 
-    const isStandalone = window.matchMedia("(display-mode: standalone)").matches || (window.navigator as any).standalone === true;
-    setIsAlreadyInstalled(isStandalone);
-
-    window.addEventListener("beforeinstallprompt", (e) => {
-      e.preventDefault();
-      setDeferredPrompt(e);
-    });
-
     return () => {
       clearInterval(interval);
     };
@@ -790,44 +779,6 @@ export default function App() {
     } catch (err: any) {
       console.error("API action network error, using offline simulation fallback:", err);
       return processActionLocally(action, payload);
-    }
-  };
-
-  const handleDirectInstall = () => {
-    const isIframe = window.self !== window.top;
-    if (isIframe) {
-      setInstallStatus("Portal running in embedded view");
-      setTimeout(() => setInstallStatus(null), 3500);
-      return;
-    }
-
-    if (deferredPrompt) {
-      deferredPrompt.prompt();
-      deferredPrompt.userChoice.then((choiceResult: any) => {
-        if (choiceResult.outcome === "accepted") {
-          setIsAlreadyInstalled(true);
-          setInstallStatus("App Installed ✓");
-        } else {
-          setInstallStatus("Cancelled");
-        }
-        setDeferredPrompt(null);
-        setTimeout(() => setInstallStatus(null), 3000);
-      });
-    } else {
-      const isStandalone = window.matchMedia("(display-mode: standalone)").matches || (window.navigator as any).standalone === true;
-      if (isStandalone || isAlreadyInstalled) {
-        setInstallStatus("Already Installed ✓");
-        setTimeout(() => setInstallStatus(null), 3000);
-        return;
-      }
-
-      const ua = navigator.userAgent.toLowerCase();
-      if (/iphone|ipad|ipod/.test(ua)) {
-        setInstallStatus("iOS Safari: Tap Share ➔ 'Add to Home Screen'");
-      } else {
-        setInstallStatus("Please click Browser Menu (⋮) ➔ 'Install App'");
-      }
-      setTimeout(() => setInstallStatus(null), 6000);
     }
   };
 
@@ -1070,14 +1021,7 @@ export default function App() {
           </div>
 
           <div className="grid grid-cols-2 gap-2 pt-1">
-            <button
-              type="button"
-              onClick={handleDirectInstall}
-              className="flex items-center justify-center gap-1.5 py-2 bg-gradient-to-r from-indigo-700 to-indigo-600 hover:from-indigo-600 hover:to-indigo-500 text-white font-bold text-[9px] rounded-lg transition-all shadow uppercase tracking-wider cursor-pointer"
-            >
-              <Smartphone className="h-3 w-3 text-indigo-200" />
-              <span>Install PWA</span>
-            </button>
+            <PWAInstallButton variant="header" />
 
             {isAuthenticated ? (
               <button
@@ -1099,12 +1043,6 @@ export default function App() {
               </button>
             )}
           </div>
-
-          {installStatus && (
-            <div className="text-[9px] text-amber-300 font-bold tracking-wide animate-pulse bg-slate-900/60 p-1 rounded border border-slate-800 text-center">
-              ⚡ {installStatus}
-            </div>
-          )}
         </div>
       </aside>
 
@@ -1307,17 +1245,9 @@ export default function App() {
 
             <div className="border-t border-slate-900 pt-4 space-y-3">
               <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    handleDirectInstall();
-                    setIsSidebarOpenMobile(false);
-                  }}
-                  className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-indigo-600 text-white font-bold text-xs rounded-xl"
-                >
-                  <Smartphone className="h-3.5 w-3.5" />
-                  <span>Install App</span>
-                </button>
+                <div className="flex-1">
+                  <PWAInstallButton variant="drawer" onInstalled={() => setIsSidebarOpenMobile(false)} />
+                </div>
                 
                 {isAuthenticated && (
                   <button
@@ -1528,6 +1458,7 @@ export default function App() {
         </footer>
       </main>
 
+      <OfflineIndicator />
     </div>
   );
 }
