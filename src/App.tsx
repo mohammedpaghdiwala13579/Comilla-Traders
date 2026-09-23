@@ -796,9 +796,8 @@ export default function App() {
   const handleDirectInstall = () => {
     const isIframe = window.self !== window.top;
     if (isIframe) {
-      setInstallStatus("Opening direct app window...");
+      setInstallStatus("Portal running in embedded view");
       setTimeout(() => setInstallStatus(null), 3500);
-      window.open(window.location.href, "_blank");
       return;
     }
 
