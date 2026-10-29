@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
+import PublicSite from "./PublicSite";
 import {
   Ship,
   Users,
@@ -298,7 +299,7 @@ const getPreSeededStats = (inv: InventoryItem[]): StatsData => {
   };
 };
 
-export default function App() {
+function OperationsPortal() {
   const [activeTab, setActiveTab] = useState<"crew" | "host" | "statistics">((() => {
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
@@ -1467,4 +1468,14 @@ export default function App() {
       <OfflineIndicator />
     </div>
   );
+}
+
+
+// The public business website is the default experience. The existing private operations
+// workspace remains available at /portal; authentication for that workspace must be secured.
+export default function App() {
+  if (typeof window !== "undefined" && window.location.pathname.startsWith("/portal")) {
+    return <OperationsPortal />;
+  }
+  return <PublicSite />;
 }
